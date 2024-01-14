@@ -27,7 +27,7 @@ const Drawer = () => {
 
   // Image Input
 
-  const [image, setImage] = useState("/newshirts.svg");
+  const [image, setImage] = useState("");
   const [imageWidth, setImageWidth] = useState(0);
   const HandleImageInput = (e) => {
     const reader = new FileReader();
