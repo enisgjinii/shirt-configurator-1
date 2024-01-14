@@ -5,25 +5,10 @@ import { Stage, Rect, Layer, Circle, Text, Image } from "react-konva";
 import useImage from "use-image";
 import { useControls } from "leva";
 
-
-
-
-
-
 const Drawer = () => {
   const konvaControls = useControls({
     textFontSize: { value: 40, min: 10, max: 300 },
-
   });
-
-
-
-
-
-
-
-
-
 
   // Image Input
 
@@ -43,11 +28,9 @@ const Drawer = () => {
           const aspectRatio = imageEl.width / imageEl.height;
           const newImageWidth = 120 * aspectRatio;
           setImageWidth(newImageWidth);
-          console.log(newImageWidth);
         };
 
         document.getElementById("my_modal_2").showModal();
-
       }
     };
 
@@ -58,22 +41,9 @@ const Drawer = () => {
     const [url] = useImage(image);
 
     return (
-      <Image
-        {...props}
-        image={url}
-        draggable
-        width={imageWidth }
-        height={150}
-      />
+      <Image {...props} image={url} draggable width={imageWidth} height={150} />
     );
   }
-
-
-
-
-
-
-
 
   // Text Input
 
@@ -84,7 +54,6 @@ const Drawer = () => {
     const text = textInput.current.value;
     setText(text);
     document.getElementById("my_modal_2").showModal();
-    
   };
 
   function NewText(props) {
@@ -102,7 +71,7 @@ const Drawer = () => {
 
   const [currentColor, setCurrentColor] = useState("white");
 
-  const HandleColorInput  = (e) => {
+  const HandleColorInput = (e) => {
     const color = e.target.value;
     setCurrentColor(color);
   };
@@ -141,44 +110,24 @@ const Drawer = () => {
     </svg>
   `;
 
-
-
-
-
-
-
-
-
-
   const [textColor, setTextColor] = useState("black");
 
   const HandleTextColor = (e) => {
     const color = e.target.value;
     setTextColor(color);
-  }
+  };
 
-
-  
-  
   const svgurl = svgToURL(svg);
 
-
-
-
-  const SvgImage =()=>{
+  const SvgImage = () => {
     const [url] = useImage(svgurl);
-    return (
-      <Image image={url} x={-6}  y={0}   width={610} height={610} />
-    )
-  }
-
-
+    return <Image image={url} x={-6} y={0} width={610} height={610} />;
+  };
 
   const [imageX, setImageX] = useState(94);
   const [imageY, setImageY] = useState(150);
   const [textX, setTextX] = useState(86);
   const [textY, setTextY] = useState(320);
-  
 
   // Permanent
 
@@ -209,18 +158,14 @@ const Drawer = () => {
 
             <div>
               <label className="font-semibold text-lg">
-             
                 Change Shirt Color:
               </label>
               <input
                 type="color"
                 value={"#ffffff"}
-            
                 onChange={HandleColorInput}
               />
             </div>
-
-            {/* Open the modal using document.getElementById('ID').showModal() method */}
             <button
               className="btn"
               onClick={() => document.getElementById("my_modal_2").showModal()}
@@ -235,29 +180,32 @@ const Drawer = () => {
                   </button>
                 </form>
 
-
                 <Stage
                   className=" text-center "
                   id="konva"
-               
                   width={600}
                   height={600}
-
                 >
                   <Layer>
-                
+                    <SvgImage />
 
-                 
+                    <NewImage
+                      x={imageX}
+                      y={imageY}
+                      draggable
+                      onDragEnd={(e) => {
+                        setImageX(e.target.x()), setImageY(e.target.y());
+                      }}
+                    />
 
-              <SvgImage/>
-
-                    <NewImage x={imageX} y={imageY} draggable onDragEnd={(e)=>{
-setImageX(e.target.x()),setImageY(e.target.y())
-}} />
-
-                    <NewText x={textX} y={textY}  fill={textColor} onDragEnd={(e)=>{
-setTextX(e.target.x()),setTextY(e.target.y())
-}} />
+                    <NewText
+                      x={textX}
+                      y={textY}
+                      fill={textColor}
+                      onDragEnd={(e) => {
+                        setTextX(e.target.x()), setTextY(e.target.y());
+                      }}
+                    />
                   </Layer>
                 </Stage>
               </div>
@@ -288,26 +236,25 @@ setTextX(e.target.x()),setTextY(e.target.y())
                 <button className="btn btn-active btn-accent">Add</button>
               </form>
 
-
               <div>
-              <label className="font-semibold text-lg">
-             
-                Change Text Color:
-              </label>
-              <input
-              className="my-5"
-                type="color"
-                value={"#00009"}
-            
-                onChange={HandleTextColor}
-              />
+                <label className="font-semibold text-lg">
+                  Change Text Color:
+                </label>
+                <input
+                  className="my-5"
+                  type="color"
+                  value={"#00009"}
+                  onChange={HandleTextColor}
+                />
+              </div>
             </div>
 
-
-            </div>
-
-            <button id="export-btn" className="btn btn-xs sm:btn-sm md:btn-md lg:btn-lg">Export</button>
-
+            <button
+              id="export-btn"
+              className="btn btn-xs sm:btn-sm md:btn-md lg:btn-lg"
+            >
+              Export
+            </button>
           </div>
         </div>
       </div>

@@ -6,49 +6,33 @@ import React, { useEffect, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import {GLTFExporter} from "three/examples/jsm/exporters/GLTFExporter";
+import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter";
 
 export default function Shirt(props) {
   const { nodes, materials } = useGLTF("/models/uvshirt.glb");
 
+  let canvas = Array.from(document.getElementsByTagName("canvas"))[0],
+    ctx,
+    texture;
 
+  ctx = canvas.getContext("2d");
+  texture = new THREE.CanvasTexture(ctx.canvas);
+  texture.needsUpdate = true;
+  texture.flipY = false;
+  texture.encoding = THREE.sRGBEncoding;
+  texture.anisotropy = 16;
+  texture.wrapS = THREE.RepeatWrapping;
 
+  useFrame(() => {
+    texture.needsUpdate = true;
+  });
 
-  let canvas = Array.from(document.getElementsByTagName('canvas'))[0],
-  ctx,
-  texture
+  useEffect(() => {
+    materials.Body_FRONT_2664.map = texture;
+    materials.Body_FRONT_2664.side = THREE.DoubleSide;
+  }, []);
 
-ctx = canvas.getContext('2d')
-texture = new THREE.CanvasTexture(ctx.canvas)
-texture.needsUpdate = true
-texture.flipY = false
-texture.encoding = THREE.sRGBEncoding
-texture.anisotropy = 16
-texture.wrapS = THREE.RepeatWrapping
-
-
-useFrame(() => {
-  texture.needsUpdate = true
-
-
-  
-  
-})
-
-
-
-useEffect(() => {
-    materials.Body_FRONT_2664.map = texture
-    materials.Body_FRONT_2664.side = THREE.DoubleSide
-  
-},[])
-
-  console.log(canvas)
-
-
-
-
-const exportBtn = document.getElementById("export-btn");
+  const exportBtn = document.getElementById("export-btn");
   const meshRef = useRef();
   const exporter = new GLTFExporter();
 
@@ -57,104 +41,102 @@ const exportBtn = document.getElementById("export-btn");
       binary: false, // Set to true if you want to export in binary format
       trs: false,
       truncateDrawRange: true,
-      embedImages: false, 
+      embedImages: false,
     };
 
-    exporter.parse(meshRef.current, (gltf) => {
-      downloadJSON(gltf);
-    }, options);
+    exporter.parse(
+      meshRef.current,
+      (gltf) => {
+        downloadJSON(gltf);
+      },
+      options
+    );
   };
 
   const downloadJSON = (data) => {
     const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
+    const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
 
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'shirt.gltf';
+    a.download = "shirt.gltf";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-
-
-exportBtn.addEventListener("click", () => {
-  handleExport();
-})
-
-
-
-
+  exportBtn.addEventListener("click", () => {
+    handleExport();
+  });
 
   return (
     <group {...props} ref={meshRef} dispose={null}>
-    <group
-      position={[0.045, -0.016, 0.115]}
-      rotation={[-1.486, -0.023, -0.037]}
-    >
-      <group rotation={[Math.PI / 2, 0, 0]}>
-        <mesh
-          castShadow
-          receiveShadow
-          geometry={nodes.back.geometry}
-          material={materials.Body_FRONT_2664}
-          position={[-0.051, 0.033, -0.207]}
-        />
-        <mesh
-          castShadow
-          receiveShadow
-          geometry={nodes.Object_16.geometry}
-          material={materials.Body_FRONT_2664}
-          position={[-0.052, 0.041, -0.151]}
-        />
-        <mesh
-          castShadow
-          receiveShadow
-          geometry={nodes.front.geometry}
-          material={materials.Body_FRONT_2664}
-          position={[-0.051, 0.031, -0.03]}
-        />
-        <mesh
-          castShadow
-          receiveShadow
-          geometry={nodes.Object_12.geometry}
-          material={materials.Body_FRONT_2664}
-          position={[-0.051, 0.05, -0.085]}
-        />
-        <mesh
-          castShadow
-          receiveShadow
-          geometry={nodes.Object_6.geometry}
-          material={materials.Body_FRONT_2664}
-          position={[-0.051, 0.382, -0.17]}
-        />
-        <mesh
-          castShadow
-          receiveShadow
-          geometry={nodes.Object_8.geometry}
-          material={materials.Body_FRONT_2664}
-          position={[-0.052, 0.349, -0.09]}
-        />
-        <mesh
-          castShadow
-          receiveShadow
-          geometry={nodes.Object_18.geometry}
-          material={materials.Sleeves_FRONT_2669}
-          position={[0.191, 0.207, -0.135]}
-        />
-        <mesh
-          castShadow
-          receiveShadow
-          geometry={nodes.Object_20.geometry}
-          material={materials.Sleeves_FRONT_2669}
-          position={[-0.294, 0.205, -0.136]}
-        />
+      <group
+        position={[0.045, -0.016, 0.115]}
+        rotation={[-1.486, -0.023, -0.037]}
+      >
+        <group rotation={[Math.PI / 2, 0, 0]}>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={nodes.back.geometry}
+            material={materials.Body_FRONT_2664}
+            position={[-0.051, 0.033, -0.207]}
+          />
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={nodes.Object_16.geometry}
+            material={materials.Body_FRONT_2664}
+            position={[-0.052, 0.041, -0.151]}
+          />
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={nodes.front.geometry}
+            material={materials.Body_FRONT_2664}
+            position={[-0.051, 0.031, -0.03]}
+          />
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={nodes.Object_12.geometry}
+            material={materials.Body_FRONT_2664}
+            position={[-0.051, 0.05, -0.085]}
+          />
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={nodes.Object_6.geometry}
+            material={materials.Body_FRONT_2664}
+            position={[-0.051, 0.382, -0.17]}
+          />
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={nodes.Object_8.geometry}
+            material={materials.Body_FRONT_2664}
+            position={[-0.052, 0.349, -0.09]}
+          />
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={nodes.Object_18.geometry}
+            material={materials.Sleeves_FRONT_2669}
+            position={[0.191, 0.207, -0.135]}
+          />
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={nodes.Object_20.geometry}
+            material={materials.Sleeves_FRONT_2669}
+            position={[-0.294, 0.205, -0.136]}
+          />
+        </group>
       </group>
     </group>
-  </group>
   );
 }
 
