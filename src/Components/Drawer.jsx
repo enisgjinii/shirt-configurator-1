@@ -61,7 +61,7 @@ const Drawer = () => {
       <Image
         {...props}
         image={url}
-        
+        draggable
         width={imageWidth }
         height={150}
       />
