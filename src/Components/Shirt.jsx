@@ -15,8 +15,9 @@ import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter";
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter";
 import { Card, CardContent, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-export default function Shirt({ modelUrl, onTextureCanvas }) {
+export default function Shirt({ modelUrl, onTextureCanvas, onUvMapUrl }) {
   const [gltf, setGltf] = useState(null);
   const [mainMesh, setMainMesh] = useState(null);
   const [mainMaterial, setMainMaterial] = useState(null);
@@ -32,6 +33,7 @@ export default function Shirt({ modelUrl, onTextureCanvas }) {
   const [placementUV, setPlacementUV] = useState(null); // { u, v }
   const { gl, scene, camera } = useThree();
   const canvasRef = useRef();
+  const controlsRef = useRef();
 
   // Listen for sidebar changes (color, image, text, textColor, export)
   useEffect(() => {
@@ -332,6 +334,32 @@ export default function Shirt({ modelUrl, onTextureCanvas }) {
   useEffect(() => {
     if (onTextureCanvas && canvas) onTextureCanvas(canvas);
   }, [canvas, onTextureCanvas]);
+  // Call onUvMapUrl when uvMapUrl changes
+  useEffect(() => {
+    if (onUvMapUrl && uvMapUrl) onUvMapUrl(uvMapUrl);
+  }, [uvMapUrl, onUvMapUrl]);
+
+  // Fit camera to model after loading
+  function fitCameraToObject(object, camera, controls, offset = 1.25) {
+    const box = new THREE.Box3().setFromObject(object);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera.fov * (Math.PI / 180);
+    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * offset;
+    camera.position.set(center.x, center.y, cameraZ + center.z);
+    camera.lookAt(center);
+    if (controls) {
+      controls.target.copy(center);
+      controls.update();
+    }
+  }
+
+  useEffect(() => {
+    if (gltf && camera) {
+      fitCameraToObject(gltf.scene, camera, controlsRef.current);
+    }
+  }, [gltf, camera]);
 
   // Only return 3D objects
   return gltf ? <primitive object={gltf.scene} dispose={null} /> : null;

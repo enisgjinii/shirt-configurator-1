@@ -2,7 +2,7 @@ import { Environment, OrbitControls, Stage } from "@react-three/drei";
 import Shirt from "./Shirt";
 import { Suspense } from "react";
 
-const Experience = ({ modelUrl }) => {
+const Experience = ({ modelUrl, onTextureCanvas, onUvMapUrl }) => {
   return (
     <>
       <OrbitControls
@@ -13,7 +13,7 @@ const Experience = ({ modelUrl }) => {
       />
       <Stage>
         <Suspense fallback={null}>
-          <Shirt modelUrl={modelUrl} />
+          <Shirt modelUrl={modelUrl} onTextureCanvas={onTextureCanvas} onUvMapUrl={onUvMapUrl} />
         </Suspense>
       </Stage>
     </>

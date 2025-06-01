@@ -4,6 +4,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "./ui/card";
 import { Separator } from "./ui/separator";
+import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
 
 const EXPORT_FORMATS = [
   { label: "GLTF (.gltf)", value: "gltf" },
@@ -25,6 +26,15 @@ const MODELS = [
   { label: "Sci-Fi Helmet", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/SciFiHelmet/glTF/SciFiHelmet.gltf" },
   { label: "VC Model", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/VC/glTF/VC.gltf" },
   { label: "Box", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF/Box.gltf" },
+];
+
+const SUGGESTED_COLORS = [
+  "#ffffff", "#000000", "#f87171", "#fbbf24", "#34d399", "#60a5fa", "#a78bfa", "#f472b6"
+];
+const SUGGESTED_GRADIENTS = [
+  "linear-gradient(135deg, #f87171 0%, #fbbf24 100%)",
+  "linear-gradient(135deg, #34d399 0%, #60a5fa 100%)",
+  "linear-gradient(135deg, #a78bfa 0%, #f472b6 100%)"
 ];
 
 const Drawer = ({ modelUrl, setModelUrl }) => {
@@ -107,15 +117,30 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
         <CardContent className="flex flex-col gap-6 flex-1">
           {/* Shirt Color */}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="shirt-color" className="font-semibold text-lg text-gray-700">Shirt Color</Label>
-            <Input
-              id="shirt-color"
-              type="color"
-              value={currentColor}
-              onChange={handleColorInput}
-              className="w-10 h-10 p-0 border-2 border-blue-200 rounded-full cursor-pointer shadow"
-              aria-label="Change shirt color"
-            />
+            <Label htmlFor="shirt-color" className="font-semibold text-lg text-gray-700 dark:text-gray-200">Shirt Color</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-10 h-10 p-0 rounded-full border-2 border-blue-200 shadow" style={{ background: currentColor, backgroundImage: currentColor.startsWith('linear') ? currentColor : undefined }} aria-label="Change shirt color">
+                  <span className="sr-only">Pick color</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 flex flex-col gap-4">
+                <div className="flex flex-wrap gap-2">
+                  {SUGGESTED_COLORS.map((color) => (
+                    <button key={color} className="w-8 h-8 rounded-full border-2 border-border" style={{ background: color }} onClick={() => { setCurrentColor(color); window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { color } })); }} />
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {SUGGESTED_GRADIENTS.map((gradient, i) => (
+                    <button key={i} className="w-16 h-8 rounded-lg border-2 border-border" style={{ background: gradient }} onClick={() => { setCurrentColor(gradient); window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { color: gradient } })); }} />
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <Input type="color" value={currentColor.startsWith('#') ? currentColor : '#ffffff'} onChange={e => { setCurrentColor(e.target.value); window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { color: e.target.value } })); }} className="w-10 h-10 p-0 border-2 border-blue-200 rounded-full cursor-pointer shadow" aria-label="Custom color" />
+                  <span className="text-xs text-muted-foreground">Custom</span>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <Separator />
           {/* Add Image */}
