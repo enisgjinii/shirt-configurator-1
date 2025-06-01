@@ -1,8 +1,8 @@
 import { Environment, OrbitControls, Stage } from "@react-three/drei";
 import Shirt from "./Shirt";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense } from "react";
 
-const Experience = () => {
+const Experience = ({ modelUrl }) => {
   return (
     <>
       <OrbitControls
@@ -11,14 +11,13 @@ const Experience = () => {
         minDistance={0.4}
         maxDistance={1.6}
       />
-
       <Stage>
         <Suspense fallback={null}>
-          <Shirt />
+          <Shirt modelUrl={modelUrl} />
         </Suspense>
       </Stage>
     </>
   );
 };
 
-export default Experience;
+export default Experience; 
