@@ -16,11 +16,13 @@
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.5",
+    "@radix-ui/react-tabs": "^1.1.12",
     "@tailwindcss/vite": "^4.1.8",
     "autoprefixer": "^10.4.16",
     "canvg": "^4.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "fabric": "^6.6.7",
     "lucide-react": "^0.511.0",
     "postcss": "^8.4.33",
     "r3f-perf": "^7.1.2",
@@ -49,6 +51,6 @@
     "react-konva": "^18.2.10",
     "tailwindcss": "^3.4.17",
     "three": "^0.160.0",
-    "vite": "^5.0.8"
+    "vite": "^6.3.5"
   }
 }
