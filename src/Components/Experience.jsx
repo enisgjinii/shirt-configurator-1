@@ -351,8 +351,10 @@ const Experience = ({
         const webmBlob = new Blob(recorder.recordedChunks, { type: 'video/webm' });
         // 3. Use ffmpeg.wasm to convert to mp4
         window.dispatchEvent(new CustomEvent('mp4-status', { detail: 'Loading FFmpeg...' }));
-        // DYNAMIC IMPORT HERE
-        const { createFFmpeg, fetchFile } = await import('@ffmpeg/ffmpeg');
+        // Robust dynamic import for Vite
+        const ffmpegModule = await import('@ffmpeg/ffmpeg');
+        const createFFmpeg = ffmpegModule.createFFmpeg || ffmpegModule.default.createFFmpeg;
+        const fetchFile = ffmpegModule.fetchFile || ffmpegModule.default.fetchFile;
         const ffmpeg = createFFmpeg({ log: true });
         await ffmpeg.load();
         window.dispatchEvent(new CustomEvent('mp4-status', { detail: 'Converting to MP4...' }));
