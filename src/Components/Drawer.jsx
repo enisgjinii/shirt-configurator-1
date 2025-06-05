@@ -12,142 +12,214 @@ import { Slider } from "./ui/slider";
 import { Switch } from "./ui/switch";
 import { Badge } from "./ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 
 const EXPORT_FORMATS = [
+  { label: "PNG (High Quality)", value: "png" },
+  { label: "JPEG", value: "jpeg" },
+  { label: "WebP", value: "webp" },
   { label: "GLTF (.gltf)", value: "gltf" },
   { label: "GLB (.glb)", value: "glb" },
   { label: "OBJ (.obj)", value: "obj" },
   { label: "STL (.stl)", value: "stl" },
-  { label: "PNG (screenshot)", value: "png" },
 ];
 
 const MODELS = [
   { label: "Classic T-Shirt", url: "/models/uvshirt.glb" },
-  { label: "Low Poly Shirt", url: "https://models.babylonjs.com/boombox.glb" },
-  { label: "Duck", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF/Duck.gltf" },
-  { label: "Avocado", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF/Avocado.gltf" },
-  { label: "Damaged Helmet", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf" },
-  { label: "Fox", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Fox/glTF/Fox.gltf" },
-  { label: "Lantern", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF/Lantern.gltf" },
-  { label: "Cesium Man", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMan/glTF/CesiumMan.gltf" },
-  { label: "Sci-Fi Helmet", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/SciFiHelmet/glTF/SciFiHelmet.gltf" },
-  { label: "VC Model", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/VC/glTF/VC.gltf" },
-  { label: "Box", url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF/Box.gltf" },
 ];
 
-const SUGGESTED_COLORS = [
-  "#ffffff", "#000000", "#f87171", "#fbbf24", "#34d399", "#60a5fa", "#a78bfa", "#f472b6"
+const PRESET_COLORS = [
+  "#ffffff", "#000000", "#ff0000", "#00ff00", "#0000ff", 
+  "#ffff00", "#ff00ff", "#00ffff", "#ffa500", "#800080",
+  "#ffc0cb", "#a52a2a", "#808080", "#008000", "#000080"
 ];
 
-const SUGGESTED_GRADIENTS = [
-  "linear-gradient(135deg, #f87171 0%, #fbbf24 100%)",
-  "linear-gradient(135deg, #34d399 0%, #60a5fa 100%)",
-  "linear-gradient(135deg, #a78bfa 0%, #f472b6 100%)"
+const PRESET_GRADIENTS = [
+  { name: "Sunset", value: "linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)" },
+  { name: "Ocean", value: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
+  { name: "Forest", value: "linear-gradient(135deg, #134e5e 0%, #71b280 100%)" },
+  { name: "Fire", value: "linear-gradient(135deg, #f12711 0%, #f5af19 100%)" },
+  { name: "Purple", value: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
+  { name: "Pink", value: "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)" },
+];
+
+const BACKGROUND_ENVIRONMENTS = [
+  { name: "Studio", value: "studio" },
+  { name: "Sunset", value: "sunset" },
+  { name: "Dawn", value: "dawn" },
+  { name: "Night", value: "night" },
+  { name: "Warehouse", value: "warehouse" },
+  { name: "Forest", value: "forest" },
+  { name: "Apartment", value: "apartment" },
+  { name: "City", value: "city" },
+];
+
+const ANIMATION_PRESETS = [
+  { name: "Rotate Y", value: "rotateY" },
+  { name: "Rotate X", value: "rotateX" },
+  { name: "Float", value: "float" },
+  { name: "Pulse", value: "pulse" },
+  { name: "Swing", value: "swing" },
+  { name: "Bounce", value: "bounce" },
 ];
 
 const Drawer = ({ modelUrl, setModelUrl }) => {
-  // Shirt color
+  // Shirt styling
   const [currentColor, setCurrentColor] = React.useState("#ffffff");
-  // Image
+  const [colorType, setColorType] = React.useState("single"); // single, gradient
+  const [gradientColor1, setGradientColor1] = React.useState("#ffffff");
+  const [gradientColor2, setGradientColor2] = React.useState("#000000");
+  const [gradientDirection, setGradientDirection] = React.useState(135);
+  
+  // Background settings
+  const [backgroundType, setBackgroundType] = React.useState("color"); // color, image, environment
+  const [backgroundColor, setBackgroundColor] = React.useState("#f0f0f0");
+  const [backgroundImage, setBackgroundImage] = React.useState("");
+  const [backgroundEnvironment, setBackgroundEnvironment] = React.useState("studio");
+  
+  // Image and text
   const [image, setImage] = React.useState("");
   const [imageScale, setImageScale] = React.useState(1);
   const [imageRotation, setImageRotation] = React.useState(0);
-  // Text
+  const [imagePosition, setImagePosition] = React.useState({ x: 0, y: 0 });
   const [text, setText] = React.useState("");
   const [textColor, setTextColor] = React.useState("#000000");
   const [textSize, setTextSize] = React.useState(16);
   const [textFont, setTextFont] = React.useState("Arial");
-  // Export format
-  const [exportFormat, setExportFormat] = React.useState(EXPORT_FORMATS[0].value);
-  // Placement mode
-  const [placementMode, setPlacementMode] = React.useState(null); // 'image' | 'text' | null
-  // Advanced settings
-  const [showAdvanced, setShowAdvanced] = React.useState(false);
-  const [enableShadows, setEnableShadows] = React.useState(true);
-  const [enableAntialiasing, setEnableAntialiasing] = React.useState(true);
-
+  const [textPosition, setTextPosition] = React.useState({ x: 0, y: 0 });
+  
+  // Animation settings
+  const [animationEnabled, setAnimationEnabled] = React.useState(false);
+  const [animationType, setAnimationType] = React.useState("rotateY");
+  const [animationSpeed, setAnimationSpeed] = React.useState(1);
+  const [isRecording, setIsRecording] = React.useState(false);
+  
+  // Export settings
+  const [exportFormat, setExportFormat] = React.useState("png");
+  const [exportQuality, setExportQuality] = React.useState(0.9);
+  const [exportResolution, setExportResolution] = React.useState("1920x1080");
+  
+  // UI state
+  const [placementMode, setPlacementMode] = React.useState(null);
+  const [showColorPicker, setShowColorPicker] = React.useState(false);
   // Handlers
   const handleModelChange = (value) => {
     setModelUrl(value);
     window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { modelUrl: value } }));
   };
 
-  const handleColorInput = (value) => {
-    setCurrentColor(value);
-    window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { color: value } }));
+  const handleColorChange = (color) => {
+    setCurrentColor(color);
+    const finalColor = colorType === "gradient" 
+      ? `linear-gradient(${gradientDirection}deg, ${gradientColor1} 0%, ${gradientColor2} 100%)`
+      : color;
+    window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { color: finalColor } }));
   };
 
-  const handleImageInput = (e) => {
+  const handleGradientChange = () => {
+    const gradient = `linear-gradient(${gradientDirection}deg, ${gradientColor1} 0%, ${gradientColor2} 100%)`;
+    window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { color: gradient } }));
+  };
+
+  const handleBackgroundChange = (type, value) => {
+    window.dispatchEvent(new CustomEvent("shirt-controls", { 
+      detail: { 
+        background: { type, value } 
+      } 
+    }));
+  };
+
+  const handleAnimationToggle = (enabled) => {
+    setAnimationEnabled(enabled);
+    window.dispatchEvent(new CustomEvent("shirt-controls", { 
+      detail: { 
+        animation: { enabled, type: animationType, speed: animationSpeed } 
+      } 
+    }));
+  };
+
+  const handleImageUpload = (e) => {
     const reader = new FileReader();
     reader.onload = () => {
       setImage(reader.result);
-      window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { image: reader.result } }));
+      window.dispatchEvent(new CustomEvent("shirt-controls", { 
+        detail: { 
+          image: reader.result,
+          imageScale,
+          imageRotation,
+          imagePosition
+        } 
+      }));
     };
     reader.readAsDataURL(e.target.files[0]);
   };
 
-  const handleTextInput = (e) => {
-    setText(e.target.value);
-    window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { text: e.target.value } }));
+  const handleBackgroundImageUpload = (e) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBackgroundImage(reader.result);
+      handleBackgroundChange("image", reader.result);
+    };
+    reader.readAsDataURL(e.target.files[0]);
   };
 
-  const handleTextColor = (value) => {
-    setTextColor(value);
-    window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { textColor: value } }));
-  };
-
-  const handleExportFormat = (value) => setExportFormat(value);
-
-  // Placement mode triggers
-  const startImagePlacement = () => {
-    setPlacementMode('image');
-    window.dispatchEvent(new CustomEvent('shirt-placement', { 
+  const handleTextChange = (newText) => {
+    setText(newText);
+    window.dispatchEvent(new CustomEvent("shirt-controls", { 
       detail: { 
-        type: 'image', 
-        data: {
-          image,
-          scale: imageScale,
-          rotation: imageRotation
-        }
+        text: newText,
+        textColor,
+        textSize,
+        textFont,
+        textPosition
       } 
     }));
   };
 
-  const startTextPlacement = () => {
-    setPlacementMode('text');
-    window.dispatchEvent(new CustomEvent('shirt-placement', { 
-      detail: { 
-        type: 'text', 
-        data: { 
-          text, 
-          color: textColor,
-          size: textSize,
-          font: textFont
-        } 
-      } 
-    }));
-  };
-
-  // Export button handler
   const handleExport = () => {
-    const event = new CustomEvent("shirt-export", { 
+    window.dispatchEvent(new CustomEvent("shirt-export", { 
       detail: { 
         format: exportFormat,
-        settings: {
-          shadows: enableShadows,
-          antialiasing: enableAntialiasing
-        }
+        quality: exportQuality,
+        resolution: exportResolution
       } 
-    });
-    window.dispatchEvent(event);
+    }));
   };
 
+  const handleStartRecording = () => {
+    setIsRecording(true);
+    window.dispatchEvent(new CustomEvent("shirt-record", { detail: { action: "start" } }));
+  };
+
+  const handleStopRecording = () => {
+    setIsRecording(false);
+    window.dispatchEvent(new CustomEvent("shirt-record", { detail: { action: "stop" } }));
+  };
+
+  // Update animation when settings change
+  React.useEffect(() => {
+    if (animationEnabled) {
+      window.dispatchEvent(new CustomEvent("shirt-controls", { 
+        detail: { 
+          animation: { enabled: true, type: animationType, speed: animationSpeed } 
+        } 
+      }));
+    }
+  }, [animationType, animationSpeed, animationEnabled]);
+
+  // Update gradient when colors change
+  React.useEffect(() => {
+    if (colorType === "gradient") {
+      handleGradientChange();
+    }
+  }, [gradientColor1, gradientColor2, gradientDirection, colorType]);
   return (
     <ScrollArea className="h-full">
       <Card className="w-full min-h-full bg-card flex flex-col gap-4 rounded-none border-0 shadow-none">
         <CardHeader className="p-2">
-          <CardTitle className="text-xl font-bold text-primary">Edit Your Model</CardTitle>
+          <CardTitle className="text-xl font-bold text-primary">Shirt Configurator</CardTitle>
           <Separator className="my-1" />
+          
           {/* Model Selector */}
           <div className="flex flex-col gap-1">
             <Label htmlFor="model-select" className="text-sm font-medium">Choose Model</Label>
@@ -163,155 +235,395 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
             </Select>
           </div>
         </CardHeader>
+
         <CardContent className="flex flex-col gap-3 flex-1 p-2">
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 h-8">
-              <TabsTrigger value="basic" className="text-sm">Basic</TabsTrigger>
-              <TabsTrigger value="advanced" className="text-sm">Advanced</TabsTrigger>
+          <Tabs defaultValue="colors" className="w-full">
+            <TabsList className="grid w-full grid-cols-4 h-8">
+              <TabsTrigger value="colors" className="text-xs">Colors</TabsTrigger>
+              <TabsTrigger value="content" className="text-xs">Content</TabsTrigger>
+              <TabsTrigger value="background" className="text-xs">Background</TabsTrigger>
+              <TabsTrigger value="animation" className="text-xs">Animation</TabsTrigger>
             </TabsList>
-            <TabsContent value="basic" className="space-y-3 mt-2">
-              {/* Shirt Color */}
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="shirt-color" className="text-sm font-medium">Shirt Color</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-8 h-8 p-0 rounded-full border-2 border-border shadow" style={{ background: currentColor, backgroundImage: currentColor.startsWith('linear') ? currentColor : undefined }} aria-label="Change shirt color">
-                      <span className="sr-only">Pick color</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 flex flex-col gap-2">
-                    <div className="flex flex-wrap gap-1">
-                      {SUGGESTED_COLORS.map((color) => (
-                        <TooltipProvider key={color}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button className="w-6 h-6 rounded-full border border-border hover:scale-110 transition-transform" style={{ background: color }} onClick={() => handleColorInput(color)} />
-                            </TooltipTrigger>
-                            <TooltipContent className="text-xs">{color}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {SUGGESTED_GRADIENTS.map((gradient, i) => (
-                        <TooltipProvider key={i}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button className="w-12 h-6 rounded-md border border-border hover:scale-110 transition-transform" style={{ background: gradient }} onClick={() => handleColorInput(gradient)} />
-                            </TooltipTrigger>
-                            <TooltipContent className="text-xs">Gradient {i + 1}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Input type="color" value={currentColor.startsWith('#') ? currentColor : '#ffffff'} onChange={e => handleColorInput(e.target.value)} className="w-8 h-8 p-0 border border-border rounded-full cursor-pointer shadow" aria-label="Custom color" />
-                      <span className="text-xs text-muted-foreground">Custom</span>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+
+            {/* Colors Tab */}
+            <TabsContent value="colors" className="space-y-3 mt-2">
+              {/* Color Type Selection */}
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm font-medium">Color Type</Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={colorType === "single" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setColorType("single")}
+                    className="flex-1"
+                  >
+                    Single
+                  </Button>
+                  <Button
+                    variant={colorType === "gradient" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setColorType("gradient")}
+                    className="flex-1"
+                  >
+                    Gradient
+                  </Button>
+                </div>
               </div>
-              <Separator className="my-1" />
-              {/* Add Image */}
-              <div className="flex flex-col gap-1">
-                <CardTitle className="text-base font-bold">Add Image</CardTitle>
-                <Input
-                  onChange={handleImageInput}
-                  type="file"
-                  className="file-input file-input-bordered file-input-primary w-full max-w-xs shadow h-8 text-sm"
-                  aria-label="Upload image"
-                />
-                {image && (
-                  <div className="space-y-2 mt-1">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Scale</Label>
-                      <Slider value={[imageScale]} onValueChange={([value]) => setImageScale(value)} min={0.1} max={2} step={0.1} className="h-4" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Rotation</Label>
-                      <Slider value={[imageRotation]} onValueChange={([value]) => setImageRotation(value)} min={0} max={360} step={1} className="h-4" />
-                    </div>
-                    <Button variant="secondary" className="w-full h-8 text-sm" onClick={startImagePlacement}>Place Image</Button>
+
+              {colorType === "single" ? (
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-medium">Single Color</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        className="w-8 h-8 rounded-full border-2 border-border hover:scale-110 transition-transform"
+                        style={{ background: color }}
+                        onClick={() => handleColorChange(color)}
+                      />
+                    ))}
                   </div>
-                )}
-              </div>
-              <Separator className="my-1" />
-              {/* Add Text */}
-              <div className="flex flex-col gap-1">
-                <CardTitle className="text-base font-bold">Add Text</CardTitle>
-                <Input
-                  type="text"
-                  value={text}
-                  onChange={handleTextInput}
-                  placeholder="Type here"
-                  className="w-full max-w-xs shadow h-8 text-sm"
-                  aria-label="Add text"
-                />
-                {text && (
-                  <div className="space-y-2 mt-1">
-                    <div className="flex flex-col gap-1">
-                      <Label className="text-xs">Text Color</Label>
+                  <Input
+                    type="color"
+                    value={currentColor}
+                    onChange={(e) => handleColorChange(e.target.value)}
+                    className="w-full h-10"
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <Label className="text-sm font-medium">Gradient Colors</Label>
+                  <div className="space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <Label className="text-xs w-12">Start:</Label>
                       <Input
                         type="color"
-                        value={textColor}
-                        onChange={e => handleTextColor(e.target.value)}
-                        className="w-8 h-8 p-0 border border-border rounded-full cursor-pointer shadow"
-                        aria-label="Change text color"
+                        value={gradientColor1}
+                        onChange={(e) => setGradientColor1(e.target.value)}
+                        className="w-16 h-8"
+                      />
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <Label className="text-xs w-12">End:</Label>
+                      <Input
+                        type="color"
+                        value={gradientColor2}
+                        onChange={(e) => setGradientColor2(e.target.value)}
+                        className="w-16 h-8"
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Text Size</Label>
-                      <Slider value={[textSize]} onValueChange={([value]) => setTextSize(value)} min={8} max={72} step={1} className="h-4" />
+                      <Label className="text-xs">Direction: {gradientDirection}°</Label>
+                      <Slider
+                        value={[gradientDirection]}
+                        onValueChange={([value]) => setGradientDirection(value)}
+                        min={0}
+                        max={360}
+                        step={15}
+                        className="h-4"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-1 flex-wrap">
+                    {PRESET_GRADIENTS.map((gradient) => (
+                      <TooltipProvider key={gradient.name}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              className="w-12 h-6 rounded border hover:scale-105 transition-transform"
+                              style={{ background: gradient.value }}
+                              onClick={() => {
+                                // Extract colors from preset gradient (simplified)
+                                setGradientColor1("#667eea");
+                                setGradientColor2("#764ba2");
+                                setGradientDirection(135);
+                              }}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent>{gradient.name}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Content Tab */}
+            <TabsContent value="content" className="space-y-3 mt-2">
+              {/* Image Upload */}
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm font-medium">Add Image</Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="text-sm"
+                />
+                {image && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Scale</Label>
+                        <Slider
+                          value={[imageScale]}
+                          onValueChange={([value]) => setImageScale(value)}
+                          min={0.1}
+                          max={3}
+                          step={0.1}
+                          className="h-4"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Rotation</Label>
+                        <Slider
+                          value={[imageRotation]}
+                          onValueChange={([value]) => setImageRotation(value)}
+                          min={0}
+                          max={360}
+                          step={1}
+                          className="h-4"
+                        />
+                      </div>
+                    </div>
+                    <img src={image} alt="Preview" className="w-full h-20 object-cover rounded" />
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Text Input */}
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm font-medium">Add Text</Label>
+                <Input
+                  type="text"
+                  value={text}
+                  onChange={(e) => handleTextChange(e.target.value)}
+                  placeholder="Enter your text"
+                  className="text-sm"
+                />
+                {text && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Color</Label>
+                        <Input
+                          type="color"
+                          value={textColor}
+                          onChange={(e) => setTextColor(e.target.value)}
+                          className="w-full h-8"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Size</Label>
+                        <Slider
+                          value={[textSize]}
+                          onValueChange={([value]) => setTextSize(value)}
+                          min={8}
+                          max={72}
+                          step={1}
+                          className="h-4"
+                        />
+                      </div>
                     </div>
                     <Select value={textFont} onValueChange={setTextFont}>
                       <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Select font" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Arial" className="text-sm">Arial</SelectItem>
-                        <SelectItem value="Helvetica" className="text-sm">Helvetica</SelectItem>
-                        <SelectItem value="Times New Roman" className="text-sm">Times New Roman</SelectItem>
-                        <SelectItem value="Courier New" className="text-sm">Courier New</SelectItem>
+                        <SelectItem value="Arial">Arial</SelectItem>
+                        <SelectItem value="Helvetica">Helvetica</SelectItem>
+                        <SelectItem value="Times New Roman">Times New Roman</SelectItem>
+                        <SelectItem value="Courier New">Courier New</SelectItem>
+                        <SelectItem value="Georgia">Georgia</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button variant="secondary" className="w-full h-8 text-sm" onClick={startTextPlacement}>Place Text</Button>
                   </div>
                 )}
               </div>
             </TabsContent>
-            <TabsContent value="advanced" className="space-y-3 mt-2">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Enable Shadows</Label>
-                  <Switch checked={enableShadows} onCheckedChange={setEnableShadows} className="h-4 w-7" />
+
+            {/* Background Tab */}
+            <TabsContent value="background" className="space-y-3 mt-2">
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm font-medium">Background Type</Label>
+                <div className="grid grid-cols-3 gap-1">
+                  <Button
+                    variant={backgroundType === "color" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setBackgroundType("color");
+                      handleBackgroundChange("color", backgroundColor);
+                    }}
+                    className="text-xs"
+                  >
+                    Color
+                  </Button>
+                  <Button
+                    variant={backgroundType === "image" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setBackgroundType("image")}
+                    className="text-xs"
+                  >
+                    Image
+                  </Button>
+                  <Button
+                    variant={backgroundType === "environment" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setBackgroundType("environment")}
+                    className="text-xs"
+                  >
+                    HDRI
+                  </Button>
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Enable Antialiasing</Label>
-                  <Switch checked={enableAntialiasing} onCheckedChange={setEnableAntialiasing} className="h-4 w-7" />
+              </div>
+
+              {backgroundType === "color" && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Background Color</Label>
+                  <Input
+                    type="color"
+                    value={backgroundColor}
+                    onChange={(e) => {
+                      setBackgroundColor(e.target.value);
+                      handleBackgroundChange("color", e.target.value);
+                    }}
+                    className="w-full h-10"
+                  />
                 </div>
-                <Separator className="my-1" />
-                <div className="space-y-1">
-                  <Label className="text-sm">Export Format</Label>
-                  <Select value={exportFormat} onValueChange={handleExportFormat}>
+              )}
+
+              {backgroundType === "image" && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Background Image</Label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleBackgroundImageUpload}
+                    className="text-sm"
+                  />
+                  {backgroundImage && (
+                    <img src={backgroundImage} alt="Background" className="w-full h-20 object-cover rounded" />
+                  )}
+                </div>
+              )}
+
+              {backgroundType === "environment" && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Environment</Label>
+                  <Select 
+                    value={backgroundEnvironment} 
+                    onValueChange={(value) => {
+                      setBackgroundEnvironment(value);
+                      handleBackgroundChange("environment", value);
+                    }}
+                  >
                     <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Select format" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {EXPORT_FORMATS.map((f) => (
-                        <SelectItem key={f.value} value={f.value} className="text-sm">{f.label}</SelectItem>
+                      {BACKGROUND_ENVIRONMENTS.map((env) => (
+                        <SelectItem key={env.value} value={env.value}>{env.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+              )}
+            </TabsContent>
+
+            {/* Animation Tab */}
+            <TabsContent value="animation" className="space-y-3 mt-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Enable Animation</Label>
+                <Switch
+                  checked={animationEnabled}
+                  onCheckedChange={handleAnimationToggle}
+                />
               </div>
+
+              {animationEnabled && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Animation Type</Label>
+                    <Select value={animationType} onValueChange={setAnimationType}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ANIMATION_PRESETS.map((anim) => (
+                          <SelectItem key={anim.value} value={anim.value}>{anim.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Speed: {animationSpeed}x</Label>
+                    <Slider
+                      value={[animationSpeed]}
+                      onValueChange={([value]) => setAnimationSpeed(value)}
+                      min={0.1}
+                      max={3}
+                      step={0.1}
+                      className="h-4"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant={isRecording ? "destructive" : "default"}
+                      size="sm"
+                      onClick={isRecording ? handleStopRecording : handleStartRecording}
+                      className="flex-1"
+                    >
+                      {isRecording ? "⏹ Stop Recording" : "⏺ Record Animation"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
-        <CardFooter className="p-2">
-          <Button className="w-full h-8 text-sm" onClick={handleExport}>
-            Export Design
-            <Badge variant="secondary" className="ml-2 text-[10px]">Beta</Badge>
-          </Button>
+
+        <CardFooter className="p-2 space-y-2">
+          <div className="w-full space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Format</Label>
+                <Select value={exportFormat} onValueChange={setExportFormat}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EXPORT_FORMATS.map((format) => (
+                      <SelectItem key={format.value} value={format.value} className="text-xs">
+                        {format.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Resolution</Label>
+                <Select value={exportResolution} onValueChange={setExportResolution}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1920x1080">1920x1080</SelectItem>
+                    <SelectItem value="1280x720">1280x720</SelectItem>
+                    <SelectItem value="3840x2160">4K</SelectItem>
+                    <SelectItem value="2560x1440">2K</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button className="w-full h-9 text-sm" onClick={handleExport}>
+              <span className="material-symbols-rounded mr-2">download</span>
+              Export Design
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </ScrollArea>
