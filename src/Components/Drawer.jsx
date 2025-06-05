@@ -333,10 +333,15 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
                               className="w-12 h-6 rounded border hover:scale-105 transition-transform"
                               style={{ background: gradient.value }}
                               onClick={() => {
-                                // Extract colors from preset gradient (simplified)
-                                setGradientColor1("#667eea");
-                                setGradientColor2("#764ba2");
-                                setGradientDirection(135);
+                                // Extract colors and angle from preset gradient
+                                const match = gradient.value.match(/linear-gradient\((\d+)deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
+                                if (match) {
+                                  const [_, angle, color1, color2] = match;
+                                  setGradientColor1(color1.trim());
+                                  setGradientColor2(color2.trim());
+                                  setGradientDirection(parseInt(angle));
+                                  handleGradientChange();
+                                }
                               }}
                             />
                           </TooltipTrigger>

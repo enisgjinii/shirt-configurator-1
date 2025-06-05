@@ -28,19 +28,35 @@ function AnimatedShirt({ modelUrl, color, animation, image, text, textData, imag
           if (color.startsWith('linear')) {
             // Create gradient texture
             const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 256;
+            canvas.width = 512;  // Increased resolution for better quality
+            canvas.height = 512;
             const ctx = canvas.getContext('2d');
             
-            // Parse gradient (simplified)
-            const gradient = ctx.createLinearGradient(0, 0, 256, 256);
-            gradient.addColorStop(0, '#667eea');
-            gradient.addColorStop(1, '#764ba2');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 256, 256);
-            
-            const texture = new THREE.CanvasTexture(canvas);
-            material.map = texture;
+            // Parse gradient string to extract colors and angle
+            const gradientMatch = color.match(/linear-gradient\((\d+)deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
+            if (gradientMatch) {
+              const [_, angle, color1, color2] = gradientMatch;
+              
+              // Convert angle to radians and calculate gradient coordinates
+              const angleRad = (parseInt(angle) * Math.PI) / 180;
+              const x1 = canvas.width / 2 - Math.cos(angleRad) * canvas.width;
+              const y1 = canvas.height / 2 - Math.sin(angleRad) * canvas.height;
+              const x2 = canvas.width / 2 + Math.cos(angleRad) * canvas.width;
+              const y2 = canvas.height / 2 + Math.sin(angleRad) * canvas.height;
+              
+              const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+              gradient.addColorStop(0, color1.trim());
+              gradient.addColorStop(1, color2.trim());
+              
+              ctx.fillStyle = gradient;
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              
+              const texture = new THREE.CanvasTexture(canvas);
+              texture.wrapS = THREE.RepeatWrapping;
+              texture.wrapT = THREE.RepeatWrapping;
+              material.map = texture;
+              material.needsUpdate = true;
+            }
           }
 
           child.material = material;
