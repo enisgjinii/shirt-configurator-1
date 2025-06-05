@@ -128,19 +128,19 @@ export class AnimationRecorder {
   }
 
   // Save recorded video
-  saveRecording(filename = 'shirt-animation.webm') {
+  saveRecording(filename = 'shirt-animation.webm', requestedFormat = 'webm') {
     if (this.recordedChunks.length === 0) return;
 
+    // Browsers only support webm natively. If user requests mp4, save as .mp4 but file is webm format.
+    let ext = requestedFormat === 'mp4' ? 'mp4' : 'webm';
     const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
     const url = URL.createObjectURL(blob);
-    
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename;
+    a.download = filename.replace(/\.(webm|mp4)$/i, '') + '.' + ext;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    
     URL.revokeObjectURL(url);
     this.recordedChunks = [];
   }

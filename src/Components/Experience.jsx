@@ -22,11 +22,21 @@ function AnimatedShirt({ modelUrl, color, animation, image, text, textData, imag
   const { scene } = useGLTF(modelUrl);
   const meshRef = useRef();
   const controlsRef = useRef();
-  const { camera, gl } = useThree();
+  const { camera, gl, size } = useThree();
   const [shirtMaterial, setShirtMaterial] = useState(null);
   const [extractedTextures, setExtractedTextures] = useState([]);
   const [uvMaps, setUvMaps] = useState([]);
   const [hasFramed, setHasFramed] = useState(false);
+
+  // Center model geometry at origin
+  useEffect(() => {
+    if (scene) {
+      // Compute bounding box and center
+      const box = new THREE.Box3().setFromObject(scene);
+      const center = box.getCenter(new THREE.Vector3());
+      scene.position.sub(center); // Center the model at origin
+    }
+  }, [scene]);
 
   useEffect(() => {
     if (scene) {
@@ -46,26 +56,21 @@ function AnimatedShirt({ modelUrl, color, animation, image, text, textData, imag
             canvas.width = 512;  // Increased resolution for better quality
             canvas.height = 512;
             const ctx = canvas.getContext('2d');
-            
             // Parse gradient string to extract colors and angle
             const gradientMatch = color.match(/linear-gradient\((\d+)deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
             if (gradientMatch) {
               const [_, angle, color1, color2] = gradientMatch;
-              
               // Convert angle to radians and calculate gradient coordinates
               const angleRad = (parseInt(angle) * Math.PI) / 180;
               const x1 = canvas.width / 2 - Math.cos(angleRad) * canvas.width;
               const y1 = canvas.height / 2 - Math.sin(angleRad) * canvas.height;
               const x2 = canvas.width / 2 + Math.cos(angleRad) * canvas.width;
               const y2 = canvas.height / 2 + Math.sin(angleRad) * canvas.height;
-              
               const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
               gradient.addColorStop(0, color1.trim());
               gradient.addColorStop(1, color2.trim());
-              
               ctx.fillStyle = gradient;
               ctx.fillRect(0, 0, canvas.width, canvas.height);
-              
               const texture = new THREE.CanvasTexture(canvas);
               texture.wrapS = THREE.RepeatWrapping;
               texture.wrapT = THREE.RepeatWrapping;
@@ -81,17 +86,22 @@ function AnimatedShirt({ modelUrl, color, animation, image, text, textData, imag
     }
   }, [scene, color]);
 
-  // Camera auto-framing: fit camera to model after load
+  // Camera auto-framing: fit camera to model after load and on resize
   useEffect(() => {
     if (scene && camera && gl && !hasFramed) {
       // Compute bounding box
       const box = new THREE.Box3().setFromObject(scene);
-      const size = box.getSize(new THREE.Vector3());
+      const sizeVec = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
+      // Advanced math for perfect fit
+      const maxDim = Math.max(sizeVec.x, sizeVec.y, sizeVec.z);
       const fov = camera.fov * (Math.PI / 180);
-      // Tighter offset for larger appearance
-      const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.05;
+      // Account for aspect ratio
+      const aspect = size.width / size.height;
+      let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+      if (aspect < 1) {
+        cameraZ = cameraZ / aspect;
+      }
       camera.position.set(center.x, center.y, cameraZ + center.z);
       camera.near = 0.1;
       camera.far = 1000;
@@ -104,7 +114,7 @@ function AnimatedShirt({ modelUrl, color, animation, image, text, textData, imag
       }
       setHasFramed(true);
     }
-  }, [scene, camera, gl, hasFramed]);
+  }, [scene, camera, gl, hasFramed, size]);
 
   // Camera animation
   useFrame(({ camera }) => {
@@ -143,7 +153,7 @@ function AnimatedShirt({ modelUrl, color, animation, image, text, textData, imag
   });
 
   return (
-    <group ref={meshRef}>
+    <group ref={meshRef} scale={[1.25, 1.25, 1.25]}>
       <primitive object={scene} />
       <TextureExtractor 
         model={scene} 
@@ -321,19 +331,58 @@ const Experience = ({
         const success = animationRecorder.current.startRecording(gl.domElement);
         setIsRecording(success);
       } else if (detail.action === 'stop') {
+        animationRecorder.current.saveRecording(
+          detail.format === 'mp4' ? 'shirt-animation.mp4' : 'shirt-animation.webm',
+          detail.format
+        );
         animationRecorder.current.stopRecording();
         setIsRecording(false);
       }
     };
 
+    // MP4 export handler
+    const handleExportMp4 = async () => {
+      // 1. Record a short webm video
+      const recorder = animationRecorder.current;
+      recorder.startRecording(gl.domElement);
+      setTimeout(async () => {
+        recorder.stopRecording();
+        // 2. Get the recorded webm blob
+        const webmBlob = new Blob(recorder.recordedChunks, { type: 'video/webm' });
+        // 3. Use ffmpeg.wasm to convert to mp4
+        window.dispatchEvent(new CustomEvent('mp4-status', { detail: 'Loading FFmpeg...' }));
+        // DYNAMIC IMPORT HERE
+        const { createFFmpeg, fetchFile } = await import('@ffmpeg/ffmpeg');
+        const ffmpeg = createFFmpeg({ log: true });
+        await ffmpeg.load();
+        window.dispatchEvent(new CustomEvent('mp4-status', { detail: 'Converting to MP4...' }));
+        ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
+        await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p', 'output.mp4');
+        const mp4Data = ffmpeg.FS('readFile', 'output.mp4');
+        const mp4Blob = new Blob([mp4Data.buffer], { type: 'video/mp4' });
+        // 4. Download the MP4
+        const url = URL.createObjectURL(mp4Blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'shirt-animation.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        window.dispatchEvent(new CustomEvent('mp4-status', { detail: 'MP4 export complete!' }));
+      }, 5000); // Record 5 seconds
+    };
+
     window.addEventListener('shirt-controls', handleShirtControls);
     window.addEventListener('shirt-export', handleExport);
     window.addEventListener('shirt-record', handleRecording);
+    window.addEventListener('shirt-export-mp4', handleExportMp4);
 
     return () => {
       window.removeEventListener('shirt-controls', handleShirtControls);
       window.removeEventListener('shirt-export', handleExport);
       window.removeEventListener('shirt-record', handleRecording);
+      window.removeEventListener('shirt-export-mp4', handleExportMp4);
     };
   }, [gl]);
 

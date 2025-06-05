@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -18,6 +18,7 @@ const EXPORT_FORMATS = [
   { label: "PNG (High Quality)", value: "png" },
   { label: "JPEG", value: "jpeg" },
   { label: "WebP", value: "webp" },
+  { label: "MP4 Video (webm)", value: "mp4" },
   { label: "GLTF (.gltf)", value: "gltf" },
   { label: "GLB (.glb)", value: "glb" },
   { label: "OBJ (.obj)", value: "obj" },
@@ -108,6 +109,7 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
   const [showColorPicker, setShowColorPicker] = React.useState(false);
   const [uvMapUrl, setUvMapUrl] = React.useState("");
   const [extractedTexture, setExtractedTexture] = React.useState(null);
+  const [mp4Status, setMp4Status] = useState("");
   
   // Listen for UV map extraction
   React.useEffect(() => {
@@ -203,13 +205,23 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
   };
 
   const handleExport = () => {
-    window.dispatchEvent(new CustomEvent("shirt-export", { 
-      detail: { 
-        format: exportFormat,
-        quality: exportQuality,
-        resolution: exportResolution
-      } 
-    }));
+    if (exportFormat === 'mp4') {
+      // Start recording for a few seconds, then stop and save
+      setIsRecording(true);
+      window.dispatchEvent(new CustomEvent("shirt-record", { detail: { action: "start", format: "mp4" } }));
+      setTimeout(() => {
+        setIsRecording(false);
+        window.dispatchEvent(new CustomEvent("shirt-record", { detail: { action: "stop", format: "mp4" } }));
+      }, 5000); // Record 5 seconds
+    } else {
+      window.dispatchEvent(new CustomEvent("shirt-export", { 
+        detail: { 
+          format: exportFormat,
+          quality: exportQuality,
+          resolution: exportResolution
+        } 
+      }));
+    }
   };
 
   const handleStartRecording = () => {
@@ -220,6 +232,11 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
   const handleStopRecording = () => {
     setIsRecording(false);
     window.dispatchEvent(new CustomEvent("shirt-record", { detail: { action: "stop" } }));
+  };
+
+  const handleExportAsMp4 = () => {
+    setMp4Status("Converting to MP4, please wait...");
+    window.dispatchEvent(new CustomEvent("shirt-export-mp4", {}));
   };
 
   // Update animation when settings change
@@ -570,6 +587,11 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
               </Card>
             </TabsContent>
           </Tabs>
+
+          <Button className="w-full mt-2" onClick={handleExportAsMp4}>
+            Export as MP4 (beta)
+          </Button>
+          {mp4Status && <div className="text-xs text-gray-500 mt-1">{mp4Status}</div>}
         </div>
       </ScrollArea>
     </div>
