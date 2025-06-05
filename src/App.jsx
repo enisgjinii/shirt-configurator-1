@@ -3,24 +3,47 @@ import { Canvas } from "@react-three/fiber"
 import Experience from "./components/Experience"
 import Drawer from "./components/Drawer"
 import { Leva } from "leva"
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "./components/ui/card";
-import { Separator } from "./components/ui/separator";
+import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Toaster } from "sonner";
-import { Switch } from "./components/ui/switch";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
-import { Dialog, DialogTrigger, DialogContent, DialogTitle } from "./components/ui/dialog";
+import { Sheet, SheetContent, SheetTrigger } from "./components/ui/sheet";
+import { ScrollArea } from "./components/ui/scroll-area";
 
 const DEFAULT_MODEL = "/models/uvshirt.glb";
 
 function App() {
   const [modelUrl, setModelUrl] = useState(DEFAULT_MODEL);
   const [darkMode, setDarkMode] = useState(false);
-  const [textureCanvas, setTextureCanvas] = useState(null);
-  const [uvMapUrl, setUvMapUrl] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState("design");
-  const [showHelp, setShowHelp] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const containerRef = useRef(null);
+
+  // Handle responsive design and prevent scrolling
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    };
+
+    const preventScroll = (e) => {
+      e.preventDefault();
+    };
+
+    // Prevent scrolling on the body
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('wheel', preventScroll, { passive: false });
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      document.body.style.overflow = '';
+      document.removeEventListener('wheel', preventScroll);
+      document.removeEventListener('touchmove', preventScroll);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Toggle dark mode
   useEffect(() => {
@@ -28,97 +51,180 @@ function App() {
   }, [darkMode]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300">
-      {/* Topbar */}
-      <nav className="w-full bg-background shadow-md z-20 px-4 py-2 flex items-center justify-between border-b border-border">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen((v) => !v)} aria-label="Toggle sidebar">
-            <span className="material-symbols-rounded">menu</span>
-          </Button>
-          <img src="/logo192.png" alt="Shirt Configurator Logo" className="h-8 w-8 rounded-full shadow" />
-          <span className="text-xl font-bold tracking-tight">Shirt Configurator</span>
-        </div>
-        <div className="flex gap-3 items-center">
-          <Button variant="ghost" size="icon" aria-label="Undo"><span className="material-symbols-rounded">undo</span></Button>
-          <Button variant="ghost" size="icon" aria-label="Redo"><span className="material-symbols-rounded">redo</span></Button>
-          <Button variant="ghost" size="icon" onClick={() => setShowHelp(true)} aria-label="Help"><span className="material-symbols-rounded">help</span></Button>
-          <span className="text-sm font-medium">Dark</span>
-          <Switch checked={darkMode} onCheckedChange={setDarkMode} />
-        </div>
-      </nav>
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-gradient-to-br from-background to-background/95 text-foreground transition-colors duration-300">
       <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
-        {sidebarOpen && (
-          <aside className="w-[340px] min-w-[260px] max-w-[400px] bg-card border-r border-border shadow-lg flex flex-col transition-all duration-300">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-              <TabsList className="flex gap-2 p-2 border-b border-border bg-background">
-                <TabsTrigger value="design">Design</TabsTrigger>
-                <TabsTrigger value="export">Export</TabsTrigger>
-                <TabsTrigger value="presets">Presets</TabsTrigger>
-                <TabsTrigger value="info">Info</TabsTrigger>
-              </TabsList>
-              <TabsContent value="design" className="flex-1 overflow-y-auto"><Drawer modelUrl={modelUrl} setModelUrl={setModelUrl} /></TabsContent>
-              <TabsContent value="export" className="flex-1 overflow-y-auto p-4">{/* Export UI here */}<span className="text-muted-foreground">Export options coming soon...</span></TabsContent>
-              <TabsContent value="presets" className="flex-1 overflow-y-auto p-4">{/* Presets UI here */}<span className="text-muted-foreground">Presets coming soon...</span></TabsContent>
-              <TabsContent value="info" className="flex-1 overflow-y-auto p-4">{/* Info UI here */}<span className="text-muted-foreground">Info and credits coming soon...</span></TabsContent>
-            </Tabs>
-          </aside>
+        {!isMobile && (
+          <div className={`fixed inset-y-0 left-0 z-50 transition-all duration-500 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="h-auto max-h-[calc(100vh-48px)] my-6 ml-6 w-[360px] bg-card/30 backdrop-blur-xl border border-neutral-200 rounded-3xl flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b border-white/5">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-rounded text-primary text-xl">palette</span>
+                  <h2 className="text-lg font-semibold">Design Panel</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl hover:bg-background/50 transition-colors"
+                    onClick={() => setDarkMode(!darkMode)}
+                  >
+                    <span className="material-symbols-rounded text-xl">{darkMode ? 'light_mode' : 'dark_mode'}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl hover:bg-background/50 transition-colors"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <span className="material-symbols-rounded text-xl">close</span>
+                  </Button>
+                </div>
+              </div>
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="p-4">
+                  <Drawer modelUrl={modelUrl} setModelUrl={setModelUrl} />
+                </div>
+              </ScrollArea>
+              <div className="p-4 border-t border-white/5">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-rounded text-sm">info</span>
+                    <span>Version 1.0.0</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-xl hover:bg-background/50 transition-colors"
+                    >
+                      <span className="material-symbols-rounded text-xl">settings</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-xl hover:bg-background/50 transition-colors"
+                    >
+                      <span className="material-symbols-rounded text-xl">help</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
         {/* Main 3D Area */}
-        <main className="flex-1 flex flex-col items-center justify-center p-0 relative bg-background">
+        <main className="flex-1 flex flex-col items-center justify-center p-0 relative bg-background/50" ref={containerRef}>
           <Leva hidden />
           <div className="w-full h-full flex-1 flex items-center justify-center relative">
-            <Card className="w-full h-full rounded-2xl shadow-2xl border border-border bg-card flex items-center justify-center">
+            <Card className="w-full h-full rounded-none shadow-none bg-transparent flex items-center justify-center">
               <CardContent className="w-full h-full p-0 flex items-center justify-center">
-                <Canvas className="w-full h-full">
-                  <Experience modelUrl={modelUrl} onTextureCanvas={setTextureCanvas} onUvMapUrl={setUvMapUrl} />
+                <Canvas
+                  className="w-full h-full"
+                  camera={{
+                    position: [0, 0, 5],
+                    fov: 45,
+                    near: 0.1,
+                    far: 1000
+                  }}
+                  gl={{
+                    antialias: true,
+                    alpha: true,
+                    preserveDrawingBuffer: true
+                  }}
+                >
+                  <Experience modelUrl={modelUrl} />
                 </Canvas>
               </CardContent>
             </Card>
-            {/* Texture and UV Map Preview */}
-            <div className="absolute top-4 right-4 z-30 flex flex-col gap-4">
-              {textureCanvas && (
-                <Card className="w-64">
-                  <CardTitle className="text-base font-bold p-2">Texture Preview</CardTitle>
-                  <CardContent className="flex flex-col items-center gap-2">
-                    <img src={textureCanvas.toDataURL()} alt="Texture Preview" className="rounded border" />
-                  </CardContent>
-                </Card>
-              )}
-              {uvMapUrl && (
-                <Card className="w-64">
-                  <CardTitle className="text-base font-bold p-2">UV Map</CardTitle>
-                  <CardContent className="flex flex-col items-center gap-2">
-                    <img src={uvMapUrl} alt="UV Map" className="rounded border" />
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            {/* Mobile Menu Button */}
+            {isMobile && (
+              <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+                <SheetTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-10 w-10 absolute top-3 left-3 z-30 bg-background/40 backdrop-blur-xl rounded-2xl hover:bg-background/60 transition-all duration-200" 
+                    aria-label="Toggle sidebar"
+                  >
+                    <span className="material-symbols-rounded text-xl">menu</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent 
+                  side="left" 
+                  className="w-[360px] p-0 bg-card/30 backdrop-blur-xl border border-neutral-200 rounded-3xl"
+                >
+                  <div className="flex items-center justify-between p-4 border-b border-white/5">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-rounded text-primary text-xl">palette</span>
+                      <h2 className="text-lg font-semibold">Design Panel</h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-xl hover:bg-background/50 transition-colors"
+                        onClick={() => setDarkMode(!darkMode)}
+                      >
+                        <span className="material-symbols-rounded text-xl">{darkMode ? 'light_mode' : 'dark_mode'}</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-xl hover:bg-background/50 transition-colors"
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <span className="material-symbols-rounded text-xl">close</span>
+                      </Button>
+                    </div>
+                  </div>
+                  <ScrollArea className="flex-1 min-h-0">
+                    <div className="p-4">
+                      <Drawer modelUrl={modelUrl} setModelUrl={setModelUrl} />
+                    </div>
+                  </ScrollArea>
+                  <div className="p-4 border-t border-white/5">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-rounded text-sm">info</span>
+                        <span>Version 1.0.0</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-xl hover:bg-background/50 transition-colors"
+                        >
+                          <span className="material-symbols-rounded text-xl">settings</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-xl hover:bg-background/50 transition-colors"
+                        >
+                          <span className="material-symbols-rounded text-xl">help</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+            {/* Toggle Sidebar Button (Desktop) */}
+            {!isMobile && !sidebarOpen && (
+              <Button
+                variant="ghost"
+                size="icon"
+                  className="h-10 w-10 absolute top-6 left-6 z-30 bg-background/40 backdrop-blur-xl border-2 border-white/50 rounded-2xl hover:bg-background/60 transition-all duration-200"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <span className="material-symbols-rounded text-xl">menu</span>
+              </Button>
+            )}
           </div>
         </main>
       </div>
-      {/* Bottom bar */}
-      <footer className="w-full bg-background border-t border-border py-2 px-4 text-center text-xs text-muted-foreground flex items-center justify-between">
-        <span>Tip: Drag and drop images onto the 3D model. Use the sidebar tabs for more options.</span>
-        <span>© {new Date().getFullYear()} Shirt Configurator</span>
-      </footer>
       <Toaster richColors position="top-center" />
-      {/* Help Dialog */}
-      <Dialog open={showHelp} onOpenChange={setShowHelp}>
-        <DialogContent>
-          <DialogTitle>How to use the configurator</DialogTitle>
-          <ul className="list-disc pl-6 space-y-2 mt-2 text-sm">
-            <li>Use the sidebar tabs to switch between design, export, presets, and info.</li>
-            <li>Drag, scale, and rotate images/text directly on the 3D model.</li>
-            <li>Use undo/redo for all actions.</li>
-            <li>Try dark mode for a different look.</li>
-            <li>Export your design in multiple formats.</li>
-            <li>Save and load your own presets.</li>
-            <li>Mobile-friendly: pinch, zoom, and drag on touch devices.</li>
-            <li>Keyboard accessible and ARIA labeled for accessibility.</li>
-          </ul>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
