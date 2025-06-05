@@ -6,12 +6,27 @@ import { AnimationSystem, AnimationRecorder } from "../utils/AnimationSystem";
 import { TextureExtractor } from "./TextureExtractor";
 import { ScreenshotManager } from "../utils/ScreenshotManager";
 
+// Camera presets for different viewing angles
+const CAMERA_PRESETS = {
+  front: { position: [0, 0, 2], target: [0, 0, 0] },
+  back: { position: [0, 0, -2], target: [0, 0, 0] },
+  left: { position: [-2, 0, 0], target: [0, 0, 0] },
+  right: { position: [2, 0, 0], target: [0, 0, 0] },
+  top: { position: [0, 2, 0], target: [0, 0, 0] },
+  bottom: { position: [0, -2, 0], target: [0, 0, 0] },
+  perspective: { position: [1.5, 1.5, 1.5], target: [0, 0, 0] }
+};
+
 // Animated Shirt Component
-function AnimatedShirt({ modelUrl, color, animation, image, text, textData, imageData }) {
+function AnimatedShirt({ modelUrl, color, animation, image, text, textData, imageData, currentCameraPreset }) {
   const { scene } = useGLTF(modelUrl);
   const meshRef = useRef();
+  const controlsRef = useRef();
+  const { camera, gl } = useThree();
   const [shirtMaterial, setShirtMaterial] = useState(null);
-  const [extractedTexture, setExtractedTexture] = useState(null);
+  const [extractedTextures, setExtractedTextures] = useState([]);
+  const [uvMaps, setUvMaps] = useState([]);
+  const [hasFramed, setHasFramed] = useState(false);
 
   useEffect(() => {
     if (scene) {
@@ -66,21 +81,53 @@ function AnimatedShirt({ modelUrl, color, animation, image, text, textData, imag
     }
   }, [scene, color]);
 
-  // Animation loop
-  useFrame((state, delta) => {
-    if (!meshRef.current || !animation.enabled) return;
+  // Camera auto-framing: fit camera to model after load
+  useEffect(() => {
+    if (scene && camera && gl && !hasFramed) {
+      // Compute bounding box
+      const box = new THREE.Box3().setFromObject(scene);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const fov = camera.fov * (Math.PI / 180);
+      // Tighter offset for larger appearance
+      const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.05;
+      camera.position.set(center.x, center.y, cameraZ + center.z);
+      camera.near = 0.1;
+      camera.far = 1000;
+      camera.updateProjectionMatrix();
+      camera.lookAt(center);
+      // If OrbitControls is used, update its target
+      if (controlsRef.current) {
+        controlsRef.current.target.copy(center);
+        controlsRef.current.update();
+      }
+      setHasFramed(true);
+    }
+  }, [scene, camera, gl, hasFramed]);
 
-    const time = state.clock.elapsedTime * animation.speed;
+  // Camera animation
+  useFrame(({ camera }) => {
+    if (controlsRef.current) {
+      // Smooth camera transitions
+      const preset = CAMERA_PRESETS[currentCameraPreset];
+      const targetPosition = new THREE.Vector3(...preset.position);
+      const targetLookAt = new THREE.Vector3(...preset.target);
+      
+      camera.position.lerp(targetPosition, 0.05);
+      controlsRef.current.target.lerp(targetLookAt, 0.05);
+      controlsRef.current.update();
+    }
+  });
 
-    switch (animation.type) {
-      case 'rotateY':
+  // Animation system
+  useFrame(({ clock }) => {
+    if (!meshRef.current) return;
+    const time = clock.getElapsedTime();
+
+    switch (animation) {
+      case 'rotate':
         meshRef.current.rotation.y = time;
-        break;
-      case 'rotateX':
-        meshRef.current.rotation.x = Math.sin(time) * 0.3;
-        break;
-      case 'float':
-        meshRef.current.position.y = Math.sin(time) * 0.5;
         break;
       case 'pulse':
         const scale = 1 + Math.sin(time * 2) * 0.1;
@@ -100,7 +147,16 @@ function AnimatedShirt({ modelUrl, color, animation, image, text, textData, imag
       <primitive object={scene} />
       <TextureExtractor 
         model={scene} 
-        onTextureExtracted={setExtractedTexture}
+        onTextureExtracted={setExtractedTextures}
+        onUVExtracted={setUvMaps}
+        options={{
+          textureResolution: 2048,
+          uvMapResolution: 2048,
+          showGrid: true,
+          gridColor: '#444444',
+          uvLineColor: '#ffffff',
+          uvLineWidth: 1
+        }}
       />
       
       {/* Image overlay */}
@@ -163,12 +219,24 @@ function SceneBackground({ backgroundType, backgroundValue }) {
   return null;
 }
 
-export default function Experience({ modelUrl }) {
+// Main Experience Component
+const Experience = ({ 
+  modelUrl, 
+  color, 
+  animation, 
+  image, 
+  text, 
+  textData, 
+  imageData,
+  onCameraChange,
+  initialCameraPreset = 'perspective'
+}) => {
   const { camera, gl } = useThree();
   const controlsRef = useRef();
   const animationSystem = useRef(new AnimationSystem());
   const animationRecorder = useRef(new AnimationRecorder());
   const screenshotManager = useRef(null);
+  const [currentPreset, setCurrentPreset] = useState(initialCameraPreset);
   
   // State for all the controls
   const [shirtColor, setShirtColor] = useState("#ffffff");
@@ -269,24 +337,32 @@ export default function Experience({ modelUrl }) {
     };
   }, [gl]);
 
-  // Camera setup
-  useEffect(() => {
-    camera.position.set(0, 0, 5);
-    camera.lookAt(0, 0, 0);
-  }, [camera]);
+  // Camera controls configuration
+  const controlsConfig = {
+    enableDamping: true,
+    dampingFactor: 0.05,
+    minDistance: 1,
+    maxDistance: 5,
+    minPolarAngle: 0,
+    maxPolarAngle: Math.PI,
+    enablePan: true,
+    panSpeed: 0.5,
+    rotateSpeed: 0.5,
+    zoomSpeed: 0.5
+  };
+
+  // Handle camera preset changes
+  const handleCameraChange = (preset) => {
+    setCurrentPreset(preset);
+    if (onCameraChange) {
+      onCameraChange(preset);
+    }
+  };
 
   return (
     <group>
-      <PerspectiveCamera makeDefault position={[0, 0, 5]} />
-      <OrbitControls
-        ref={controlsRef}
-        enableDamping
-        dampingFactor={0.05}
-        minDistance={2}
-        maxDistance={10}
-        maxPolarAngle={Math.PI / 2}
-        minPolarAngle={0}
-      />
+      <PerspectiveCamera makeDefault position={[1.5, 1.5, 1.5]} />
+      <OrbitControls {...controlsConfig} />
       
       {/* Enhanced Lighting */}
       <ambientLight intensity={0.6} />
@@ -319,8 +395,9 @@ export default function Experience({ modelUrl }) {
         animation={animationSettings}
         image={imageSettings.image}
         text={textSettings.text}
-        imageData={imageSettings}
         textData={textSettings}
+        imageData={imageSettings}
+        currentCameraPreset={currentPreset}
       />
       
       {/* Recording indicator */}
@@ -361,4 +438,6 @@ export default function Experience({ modelUrl }) {
       )}
     </group>
   );
-}
+};
+
+export default Experience;

@@ -25,7 +25,11 @@ const EXPORT_FORMATS = [
 ];
 
 const MODELS = [
-  { label: "Classic T-Shirt", url: "/models/uvshirt.glb" },
+  {
+    label: "UV Shirt",
+    url: "/models/uvshirt.glb",
+    description: "Basic UV mapped shirt model"
+  }
 ];
 
 const PRESET_COLORS = [
@@ -102,10 +106,32 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
   // UI state
   const [placementMode, setPlacementMode] = React.useState(null);
   const [showColorPicker, setShowColorPicker] = React.useState(false);
+  const [uvMapUrl, setUvMapUrl] = React.useState("");
+  const [extractedTexture, setExtractedTexture] = React.useState(null);
+  
+  // Listen for UV map extraction
+  React.useEffect(() => {
+    const handleUVMapExtracted = (event) => {
+      if (event.detail && event.detail.uvMapUrl) {
+        setUvMapUrl(event.detail.uvMapUrl);
+      }
+    };
+
+    window.addEventListener("uv-map-extracted", handleUVMapExtracted);
+    return () => window.removeEventListener("uv-map-extracted", handleUVMapExtracted);
+  }, []);
+
   // Handlers
-  const handleModelChange = (value) => {
-    setModelUrl(value);
-    window.dispatchEvent(new CustomEvent("shirt-controls", { detail: { modelUrl: value } }));
+  const handleModelChange = (url) => {
+    setModelUrl(url);
+    // Reset other states when model changes
+    setImage(null);
+    setText("");
+    setColorType("single");
+    setCurrentColor("#ffffff");
+    setGradientColor1("#ffffff");
+    setGradientColor2("#000000");
+    setGradientDirection(0);
   };
 
   const handleColorChange = (color) => {
@@ -213,425 +239,340 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
       handleGradientChange();
     }
   }, [gradientColor1, gradientColor2, gradientDirection, colorType]);
-  return (
-    <ScrollArea className="h-full">
-      <Card className="w-full min-h-full bg-card flex flex-col gap-4 rounded-none border-0 shadow-none">
-        <CardHeader className="p-2">
-          <CardTitle className="text-xl font-bold text-primary">Shirt Configurator</CardTitle>
-          <Separator className="my-1" />
-          
-          {/* Model Selector */}
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="model-select" className="text-sm font-medium">Choose Model</Label>
-            <Select value={modelUrl} onValueChange={handleModelChange}>
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Select a model" />
-              </SelectTrigger>
-              <SelectContent>
-                {MODELS.map((m) => (
-                  <SelectItem key={m.url} value={m.url} className="text-sm">{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
 
-        <CardContent className="flex flex-col gap-3 flex-1 p-2">
-          <Tabs defaultValue="colors" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 h-8">
-              <TabsTrigger value="colors" className="text-xs">Colors</TabsTrigger>
+  return (
+    <div className="w-80 h-screen bg-background border-l overflow-hidden">
+      <ScrollArea className="h-full">
+        <div className="p-4 space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold text-primary">Shirt Configurator</h2>
+            <p className="text-xs text-muted-foreground">Customize your 3D shirt design</p>
+          </div>
+
+          <Tabs defaultValue="model" className="w-full">
+            <TabsList className="grid w-full grid-cols-4 h-9">
+              <TabsTrigger value="model" className="text-xs">Model</TabsTrigger>
+              <TabsTrigger value="style" className="text-xs">Style</TabsTrigger>
               <TabsTrigger value="content" className="text-xs">Content</TabsTrigger>
-              <TabsTrigger value="background" className="text-xs">Background</TabsTrigger>
-              <TabsTrigger value="animation" className="text-xs">Animation</TabsTrigger>
+              <TabsTrigger value="uv" className="text-xs">UV Map</TabsTrigger>
             </TabsList>
 
-            {/* Colors Tab */}
-            <TabsContent value="colors" className="space-y-3 mt-2">
-              {/* Color Type Selection */}
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Color Type</Label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={colorType === "single" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setColorType("single")}
-                    className="flex-1"
-                  >
-                    Single
-                  </Button>
-                  <Button
-                    variant={colorType === "gradient" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setColorType("gradient")}
-                    className="flex-1"
-                  >
-                    Gradient
-                  </Button>
-                </div>
-              </div>
-
-              {colorType === "single" ? (
-                <div className="flex flex-col gap-2">
-                  <Label className="text-sm font-medium">Single Color</Label>
-                  <div className="flex gap-2 flex-wrap">
-                    {PRESET_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        className="w-8 h-8 rounded-full border-2 border-border hover:scale-110 transition-transform"
-                        style={{ background: color }}
-                        onClick={() => handleColorChange(color)}
-                      />
-                    ))}
-                  </div>
-                  <Input
-                    type="color"
-                    value={currentColor}
-                    onChange={(e) => handleColorChange(e.target.value)}
-                    className="w-full h-10"
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <Label className="text-sm font-medium">Gradient Colors</Label>
+            {/* Model Tab */}
+            <TabsContent value="model" className="space-y-3 mt-3">
+              <Card className="border-0 shadow-none">
+                <CardHeader className="p-3 pb-0">
+                  <CardTitle className="text-sm">Choose Model</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3">
                   <div className="space-y-2">
-                    <div className="flex gap-2 items-center">
-                      <Label className="text-xs w-12">Start:</Label>
-                      <Input
-                        type="color"
-                        value={gradientColor1}
-                        onChange={(e) => setGradientColor1(e.target.value)}
-                        className="w-16 h-8"
-                      />
-                    </div>
-                    <div className="flex gap-2 items-center">
-                      <Label className="text-xs w-12">End:</Label>
-                      <Input
-                        type="color"
-                        value={gradientColor2}
-                        onChange={(e) => setGradientColor2(e.target.value)}
-                        className="w-16 h-8"
-                      />
-                    </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Direction: {gradientDirection}°</Label>
-                      <Slider
-                        value={[gradientDirection]}
-                        onValueChange={([value]) => setGradientDirection(value)}
-                        min={0}
-                        max={360}
-                        step={15}
-                        className="h-4"
-                      />
+                      <Label htmlFor="model-select" className="text-xs font-medium">Select Model Type</Label>
+                      <Select value={modelUrl} onValueChange={handleModelChange}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MODELS.map((model) => (
+                            <SelectItem key={model.url} value={model.url} className="text-xs">
+                              <div className="flex flex-col">
+                                <span>{model.label}</span>
+                                <span className="text-xs text-muted-foreground">{model.description}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
+                    {modelUrl && (
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        <p>Current model: {MODELS.find(m => m.url === modelUrl)?.label}</p>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-1 flex-wrap">
-                    {PRESET_GRADIENTS.map((gradient) => (
-                      <TooltipProvider key={gradient.name}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Style Tab */}
+            <TabsContent value="style" className="space-y-3 mt-3">
+              <Card className="border-0 shadow-none">
+                <CardHeader className="p-3 pb-0">
+                  <CardTitle className="text-sm">Color & Style</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 space-y-3">
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Color Type</Label>
+                      <div className="flex gap-1">
+                        <Button
+                          variant={colorType === "single" ? "default" : "outline"}
+                          className="flex-1 h-7 text-xs"
+                          onClick={() => setColorType("single")}
+                        >
+                          Single Color
+                        </Button>
+                        <Button
+                          variant={colorType === "gradient" ? "default" : "outline"}
+                          className="flex-1 h-7 text-xs"
+                          onClick={() => setColorType("gradient")}
+                        >
+                          Gradient
+                        </Button>
+                      </div>
+                    </div>
+
+                    {colorType === "single" ? (
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">Choose Color</Label>
+                        <div className="grid grid-cols-6 gap-1">
+                          {PRESET_COLORS.map((color) => (
                             <button
-                              className="w-12 h-6 rounded border hover:scale-105 transition-transform"
-                              style={{ background: gradient.value }}
-                              onClick={() => {
-                                // Extract colors and angle from preset gradient
-                                const match = gradient.value.match(/linear-gradient\((\d+)deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
-                                if (match) {
-                                  const [_, angle, color1, color2] = match;
-                                  setGradientColor1(color1.trim());
-                                  setGradientColor2(color2.trim());
-                                  setGradientDirection(parseInt(angle));
-                                  handleGradientChange();
-                                }
-                              }}
+                              key={color}
+                              className="w-full aspect-square rounded-sm border"
+                              style={{ backgroundColor: color }}
+                              onClick={() => handleColorChange(color)}
                             />
-                          </TooltipTrigger>
-                          <TooltipContent>{gradient.name}</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ))}
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium">Gradient Colors</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Color 1</Label>
+                              <Input
+                                type="color"
+                                value={gradientColor1}
+                                onChange={(e) => {
+                                  setGradientColor1(e.target.value);
+                                  handleGradientChange();
+                                }}
+                                className="h-7"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Color 2</Label>
+                              <Input
+                                type="color"
+                                value={gradientColor2}
+                                onChange={(e) => {
+                                  setGradientColor2(e.target.value);
+                                  handleGradientChange();
+                                }}
+                                className="h-7"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium">Gradient Direction</Label>
+                          <Slider
+                            value={[gradientDirection]}
+                            onValueChange={([value]) => {
+                              setGradientDirection(value);
+                              handleGradientChange();
+                            }}
+                            min={0}
+                            max={360}
+                            step={1}
+                            className="h-3"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Content Tab */}
-            <TabsContent value="content" className="space-y-3 mt-2">
-              {/* Image Upload */}
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Add Image</Label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="text-sm"
-                />
-                {image && (
+            <TabsContent value="content" className="space-y-3 mt-3">
+              <Card className="border-0 shadow-none">
+                <CardHeader className="p-3 pb-0">
+                  <CardTitle className="text-sm">Add Content</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 space-y-3">
+                  {/* Image Upload */}
                   <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs">Scale</Label>
-                        <Slider
-                          value={[imageScale]}
-                          onValueChange={([value]) => setImageScale(value)}
-                          min={0.1}
-                          max={3}
-                          step={0.1}
-                          className="h-4"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Rotation</Label>
-                        <Slider
-                          value={[imageRotation]}
-                          onValueChange={([value]) => setImageRotation(value)}
-                          min={0}
-                          max={360}
-                          step={1}
-                          className="h-4"
-                        />
-                      </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Add Image</Label>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="h-7 text-xs"
+                      />
                     </div>
-                    <img src={image} alt="Preview" className="w-full h-20 object-cover rounded" />
+                    {image && (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Scale</Label>
+                            <Slider
+                              value={[imageScale]}
+                              onValueChange={([value]) => setImageScale(value)}
+                              min={0.1}
+                              max={3}
+                              step={0.1}
+                              className="h-3"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Rotation</Label>
+                            <Slider
+                              value={[imageRotation]}
+                              onValueChange={([value]) => setImageRotation(value)}
+                              min={0}
+                              max={360}
+                              step={1}
+                              className="h-3"
+                            />
+                          </div>
+                        </div>
+                        <div className="border rounded-sm overflow-hidden">
+                          <img src={image} alt="Preview" className="w-full h-24 object-contain" />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              <Separator />
+                  <Separator className="my-2" />
 
-              {/* Text Input */}
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Add Text</Label>
-                <Input
-                  type="text"
-                  value={text}
-                  onChange={(e) => handleTextChange(e.target.value)}
-                  placeholder="Enter your text"
-                  className="text-sm"
-                />
-                {text && (
+                  {/* Text Input */}
                   <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs">Color</Label>
-                        <Input
-                          type="color"
-                          value={textColor}
-                          onChange={(e) => setTextColor(e.target.value)}
-                          className="w-full h-8"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Size</Label>
-                        <Slider
-                          value={[textSize]}
-                          onValueChange={([value]) => setTextSize(value)}
-                          min={8}
-                          max={72}
-                          step={1}
-                          className="h-4"
-                        />
-                      </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Add Text</Label>
+                      <Input
+                        type="text"
+                        value={text}
+                        onChange={(e) => handleTextChange(e.target.value)}
+                        placeholder="Enter your text"
+                        className="h-7 text-xs"
+                      />
                     </div>
-                    <Select value={textFont} onValueChange={setTextFont}>
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Arial">Arial</SelectItem>
-                        <SelectItem value="Helvetica">Helvetica</SelectItem>
-                        <SelectItem value="Times New Roman">Times New Roman</SelectItem>
-                        <SelectItem value="Courier New">Courier New</SelectItem>
-                        <SelectItem value="Georgia">Georgia</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {text && (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Color</Label>
+                            <Input
+                              type="color"
+                              value={textColor}
+                              onChange={(e) => setTextColor(e.target.value)}
+                              className="h-7"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Size</Label>
+                            <Slider
+                              value={[textSize]}
+                              onValueChange={([value]) => setTextSize(value)}
+                              min={8}
+                              max={72}
+                              step={1}
+                              className="h-3"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Font</Label>
+                          <Select value={textFont} onValueChange={setTextFont}>
+                            <SelectTrigger className="h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Arial" className="text-xs">Arial</SelectItem>
+                              <SelectItem value="Helvetica" className="text-xs">Helvetica</SelectItem>
+                              <SelectItem value="Times New Roman" className="text-xs">Times New Roman</SelectItem>
+                              <SelectItem value="Courier New" className="text-xs">Courier New</SelectItem>
+                              <SelectItem value="Georgia" className="text-xs">Georgia</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
-            {/* Background Tab */}
-            <TabsContent value="background" className="space-y-3 mt-2">
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Background Type</Label>
-                <div className="grid grid-cols-3 gap-1">
-                  <Button
-                    variant={backgroundType === "color" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setBackgroundType("color");
-                      handleBackgroundChange("color", backgroundColor);
-                    }}
-                    className="text-xs"
-                  >
-                    Color
-                  </Button>
-                  <Button
-                    variant={backgroundType === "image" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setBackgroundType("image")}
-                    className="text-xs"
-                  >
-                    Image
-                  </Button>
-                  <Button
-                    variant={backgroundType === "environment" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setBackgroundType("environment")}
-                    className="text-xs"
-                  >
-                    HDRI
-                  </Button>
-                </div>
-              </div>
-
-              {backgroundType === "color" && (
-                <div className="space-y-2">
-                  <Label className="text-sm">Background Color</Label>
-                  <Input
-                    type="color"
-                    value={backgroundColor}
-                    onChange={(e) => {
-                      setBackgroundColor(e.target.value);
-                      handleBackgroundChange("color", e.target.value);
-                    }}
-                    className="w-full h-10"
-                  />
-                </div>
-              )}
-
-              {backgroundType === "image" && (
-                <div className="space-y-2">
-                  <Label className="text-sm">Background Image</Label>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleBackgroundImageUpload}
-                    className="text-sm"
-                  />
-                  {backgroundImage && (
-                    <img src={backgroundImage} alt="Background" className="w-full h-20 object-cover rounded" />
+            {/* UV Map Tab */}
+            <TabsContent value="uv" className="space-y-3 mt-3">
+              <Card className="border-0 shadow-none">
+                <CardHeader className="p-3 pb-0">
+                  <CardTitle className="text-sm">UV Map & Texture</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 space-y-3">
+                  {uvMapUrl && (
+                    <div className="space-y-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">UV Map Preview</Label>
+                        <div className="border rounded-sm overflow-hidden">
+                          <img 
+                            src={uvMapUrl} 
+                            alt="UV Map" 
+                            className="w-full h-32 object-contain bg-white"
+                          />
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          className="w-full h-7 text-xs"
+                          onClick={() => {
+                            const a = document.createElement('a');
+                            a.href = uvMapUrl;
+                            a.download = 'uv-map.png';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                          }}
+                        >
+                          Download UV Map
+                        </Button>
+                      </div>
+                    </div>
                   )}
-                </div>
-              )}
-
-              {backgroundType === "environment" && (
-                <div className="space-y-2">
-                  <Label className="text-sm">Environment</Label>
-                  <Select 
-                    value={backgroundEnvironment} 
-                    onValueChange={(value) => {
-                      setBackgroundEnvironment(value);
-                      handleBackgroundChange("environment", value);
-                    }}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BACKGROUND_ENVIRONMENTS.map((env) => (
-                        <SelectItem key={env.value} value={env.value}>{env.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Animation Tab */}
-            <TabsContent value="animation" className="space-y-3 mt-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Enable Animation</Label>
-                <Switch
-                  checked={animationEnabled}
-                  onCheckedChange={handleAnimationToggle}
-                />
-              </div>
-
-              {animationEnabled && (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label className="text-sm">Animation Type</Label>
-                    <Select value={animationType} onValueChange={setAnimationType}>
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ANIMATION_PRESETS.map((anim) => (
-                          <SelectItem key={anim.value} value={anim.value}>{anim.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm">Speed: {animationSpeed}x</Label>
-                    <Slider
-                      value={[animationSpeed]}
-                      onValueChange={([value]) => setAnimationSpeed(value)}
-                      min={0.1}
-                      max={3}
-                      step={0.1}
-                      className="h-4"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant={isRecording ? "destructive" : "default"}
-                      size="sm"
-                      onClick={isRecording ? handleStopRecording : handleStartRecording}
-                      className="flex-1"
-                    >
-                      {isRecording ? "⏹ Stop Recording" : "⏺ Record Animation"}
-                    </Button>
-                  </div>
-                </div>
-              )}
+                  {extractedTexture && (
+                    <div className="space-y-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">Extracted Texture</Label>
+                        <div className="border rounded-sm overflow-hidden">
+                          <img 
+                            src={extractedTexture.image.src} 
+                            alt="Extracted Texture" 
+                            className="w-full h-32 object-contain bg-white"
+                          />
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          className="w-full h-7 text-xs"
+                          onClick={() => {
+                            const a = document.createElement('a');
+                            a.href = extractedTexture.image.src;
+                            a.download = 'texture.png';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                          }}
+                        >
+                          Download Texture
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {!uvMapUrl && !extractedTexture && (
+                    <div className="text-center text-muted-foreground py-4">
+                      <p className="text-xs">Load a model to see UV map and texture</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
-        </CardContent>
-
-        <CardFooter className="p-2 space-y-2">
-          <div className="w-full space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Format</Label>
-                <Select value={exportFormat} onValueChange={setExportFormat}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EXPORT_FORMATS.map((format) => (
-                      <SelectItem key={format.value} value={format.value} className="text-xs">
-                        {format.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">Resolution</Label>
-                <Select value={exportResolution} onValueChange={setExportResolution}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1920x1080">1920x1080</SelectItem>
-                    <SelectItem value="1280x720">1280x720</SelectItem>
-                    <SelectItem value="3840x2160">4K</SelectItem>
-                    <SelectItem value="2560x1440">2K</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <Button className="w-full h-9 text-sm" onClick={handleExport}>
-              <span className="material-symbols-rounded mr-2">download</span>
-              Export Design
-            </Button>
-          </div>
-        </CardFooter>
-      </Card>
-    </ScrollArea>
+        </div>
+      </ScrollArea>
+    </div>
   );
 };
 
