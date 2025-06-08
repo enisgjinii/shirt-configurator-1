@@ -17,6 +17,8 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [gltf, setGltf] = useState(null);
+  const [extractedTextures, setExtractedTextures] = useState([]);
   const containerRef = useRef(null);
 
   // Handle responsive design and prevent scrolling
@@ -50,6 +52,30 @@ function App() {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
+
+  // Handle model loading and texture extraction
+  useEffect(() => {
+    const handleModelLoaded = (event) => {
+      if (event.detail && event.detail.gltf) {
+        setGltf(event.detail.gltf);
+      }
+    };
+
+    const handleTexturesExtracted = (event) => {
+      if (event.detail && event.detail.textures) {
+        setExtractedTextures(event.detail.textures);
+      }
+    };
+
+    window.addEventListener('model-loaded', handleModelLoaded);
+    window.addEventListener('textures-extracted', handleTexturesExtracted);
+
+    return () => {
+      window.removeEventListener('model-loaded', handleModelLoaded);
+      window.removeEventListener('textures-extracted', handleTexturesExtracted);
+    };
+  }, []);
+
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-blue-900 dark:to-purple-900 text-foreground transition-all duration-500">
       <div className="flex flex-1 min-h-0">
@@ -88,7 +114,12 @@ function App() {
               </div>
               <ScrollArea className="flex-1 min-h-0">
                 <div className="p-4">
-                  <Drawer modelUrl={modelUrl} setModelUrl={setModelUrl} />
+                  <Drawer 
+                    modelUrl={modelUrl} 
+                    setModelUrl={setModelUrl}
+                    gltf={gltf}
+                    extractedTextures={extractedTextures}
+                  />
                 </div>
               </ScrollArea>
               <div className="p-4 border-t border-white/10">
@@ -148,7 +179,15 @@ function App() {
                   }}
                   dpr={[1, 2]}
                 >
-                  <Experience modelUrl={modelUrl} />
+                  <Experience 
+                    modelUrl={modelUrl}
+                    onModelLoaded={(gltf) => {
+                      window.dispatchEvent(new CustomEvent('model-loaded', { detail: { gltf } }));
+                    }}
+                    onTexturesExtracted={(textures) => {
+                      window.dispatchEvent(new CustomEvent('textures-extracted', { detail: { textures } }));
+                    }}
+                  />
                 </Canvas>
                 
                 {/* Enhanced Performance Badge */}
@@ -209,7 +248,12 @@ function App() {
                   </div>
                   <ScrollArea className="flex-1 min-h-0">
                     <div className="p-4">
-                      <Drawer modelUrl={modelUrl} setModelUrl={setModelUrl} />
+                      <Drawer 
+                        modelUrl={modelUrl} 
+                        setModelUrl={setModelUrl}
+                        gltf={gltf}
+                        extractedTextures={extractedTextures}
+                      />
                     </div>
                   </ScrollArea>
                   <div className="p-4 border-t border-white/10">

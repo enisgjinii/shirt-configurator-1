@@ -5,6 +5,8 @@ import * as THREE from "three";
 import { AnimationSystem, AnimationRecorder } from "../utils/AnimationSystem";
 import { TextureExtractor } from "./TextureExtractor";
 import { ScreenshotManager } from "../utils/ScreenshotManager";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 
 // Camera presets for different viewing angles
 const CAMERA_PRESETS = {
@@ -239,7 +241,9 @@ const Experience = ({
   textData, 
   imageData,
   onCameraChange,
-  initialCameraPreset = 'perspective'
+  initialCameraPreset = 'perspective',
+  onModelLoaded,
+  onTexturesExtracted
 }) => {
   const { camera, gl } = useThree();
   const controlsRef = useRef();
@@ -261,12 +265,50 @@ const Experience = ({
     position: { x: 0, y: 0 } 
   });
   const [isRecording, setIsRecording] = useState(false);
+  const [scene, setScene] = useState(null);
+  const [hasFramed, setHasFramed] = useState(false);
 
   // Initialize systems
   useEffect(() => {
     animationSystem.current.initializeDefaultAnimations();
     screenshotManager.current = new ScreenshotManager(gl.domElement);
   }, [gl]);
+
+  // Update the model loading effect
+  useEffect(() => {
+    if (modelUrl) {
+      const loader = new GLTFLoader();
+      const dracoLoader = new DRACOLoader();
+      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+      loader.setDRACOLoader(dracoLoader);
+
+      loader.load(modelUrl, (gltf) => {
+        setScene(gltf.scene);
+        setHasFramed(false);
+        
+        // Extract textures
+        const textures = [];
+        gltf.scene.traverse((child) => {
+          if (child.isMesh && child.material) {
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            materials.forEach(material => {
+              if (material.map) {
+                textures.push({
+                  texture: material.map,
+                  name: material.name || 'texture',
+                  material: material
+                });
+              }
+            });
+          }
+        });
+
+        // Emit events
+        if (onModelLoaded) onModelLoaded(gltf);
+        if (onTexturesExtracted) onTexturesExtracted(textures);
+      });
+    }
+  }, [modelUrl, onModelLoaded, onTexturesExtracted]);
 
   // Event listeners for controls
   useEffect(() => {

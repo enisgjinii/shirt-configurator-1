@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import * as THREE from "three";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -68,7 +69,7 @@ const ANIMATION_PRESETS = [
   { name: "Bounce", value: "bounce" },
 ];
 
-const Drawer = ({ modelUrl, setModelUrl }) => {
+const Drawer = ({ modelUrl, setModelUrl, gltf, extractedTextures }) => {
   // Shirt styling
   const [currentColor, setCurrentColor] = React.useState("#ffffff");
   const [colorType, setColorType] = React.useState("single"); // single, gradient
@@ -111,6 +112,13 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
   const [extractedTexture, setExtractedTexture] = React.useState(null);
   const [mp4Status, setMp4Status] = useState("");
   
+  // Add state for cached previews
+  const [fastMode, setFastMode] = useState(true);
+  const [meshPreviews, setMeshPreviews] = useState([]);
+  const [nodeHierarchy, setNodeHierarchy] = useState(null);
+  const [uvMaps, setUvMaps] = useState([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+
   // Listen for UV map extraction
   React.useEffect(() => {
     const handleUVMapExtracted = (event) => {
@@ -122,6 +130,122 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
     window.addEventListener("uv-map-extracted", handleUVMapExtracted);
     return () => window.removeEventListener("uv-map-extracted", handleUVMapExtracted);
   }, []);
+
+  // Generate previews instantly when gltf changes
+  useEffect(() => {
+    if (!gltf?.scene) return;
+    
+    setIsGenerating(true);
+    
+    // Generate everything in one pass
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    
+    // Generate mesh previews
+    const previews = [];
+    let meshCount = 0;
+    gltf.scene.traverse((child) => {
+      if (child.isMesh && meshCount < 2) {
+        meshCount++;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        
+        const geometry = child.geometry;
+        const position = geometry.attributes.position;
+        const index = geometry.index;
+        
+        if (index) {
+          ctx.beginPath();
+          // Draw only every 12th triangle
+          for (let i = 0; i < index.count; i += 12) {
+            const a = index.getX(i);
+            const b = index.getX(i + 1);
+            const c = index.getX(i + 2);
+            
+            const ax = position.getX(a) * 32 + 32;
+            const ay = position.getY(a) * 32 + 32;
+            const bx = position.getX(b) * 32 + 32;
+            const by = position.getY(b) * 32 + 32;
+            const cx = position.getX(c) * 32 + 32;
+            const cy = position.getY(c) * 32 + 32;
+            
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(bx, by);
+            ctx.lineTo(cx, cy);
+            ctx.closePath();
+          }
+          ctx.stroke();
+        }
+        
+        previews.push(canvas.toDataURL('image/jpeg', 0.3));
+      }
+    });
+    setMeshPreviews(previews);
+    
+    // Generate node hierarchy
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 64, 64);
+    ctx.fillStyle = '#000000';
+    ctx.font = '8px monospace';
+    
+    let y = 10;
+    const drawNode = (node, level = 0) => {
+      if (level > 1) return;
+      ctx.fillText('└─ ' + (node.name || 'Node'), level * 10 + 5, y);
+      y += 10;
+      node.children.slice(0, 2).forEach(child => drawNode(child, level + 1));
+    };
+    drawNode(gltf.scene);
+    setNodeHierarchy(canvas.toDataURL('image/jpeg', 0.3));
+    
+    // Generate UV maps
+    const maps = [];
+    let uvCount = 0;
+    gltf.scene.traverse((child) => {
+      if (child.isMesh && child.geometry && child.geometry.attributes.uv && uvCount < 2) {
+        uvCount++;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        
+        const uv = child.geometry.attributes.uv;
+        const index = child.geometry.index;
+        
+        if (index) {
+          ctx.beginPath();
+          // Draw only every 12th triangle
+          for (let i = 0; i < index.count; i += 12) {
+            const a = index.getX(i);
+            const b = index.getX(i + 1);
+            const c = index.getX(i + 2);
+            
+            const ax = uv.getX(a) * 64;
+            const ay = (1 - uv.getY(a)) * 64;
+            const bx = uv.getX(b) * 64;
+            const by = (1 - uv.getY(b)) * 64;
+            const cx = uv.getX(c) * 64;
+            const cy = (1 - uv.getY(c)) * 64;
+            
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(bx, by);
+            ctx.lineTo(cx, cy);
+            ctx.closePath();
+          }
+          ctx.stroke();
+        }
+        
+        maps.push(canvas.toDataURL('image/jpeg', 0.3));
+      }
+    });
+    setUvMaps(maps);
+    
+    setIsGenerating(false);
+  }, [gltf]);
 
   // Handlers
   const handleModelChange = (url) => {
@@ -267,11 +391,12 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
           </div>
 
           <Tabs defaultValue="model" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 h-9">
+            <TabsList className="grid w-full grid-cols-5 h-9">
               <TabsTrigger value="model" className="text-xs">Model</TabsTrigger>
               <TabsTrigger value="style" className="text-xs">Style</TabsTrigger>
               <TabsTrigger value="content" className="text-xs">Content</TabsTrigger>
               <TabsTrigger value="uv" className="text-xs">UV Map</TabsTrigger>
+              <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
             </TabsList>
 
             {/* Model Tab */}
@@ -519,69 +644,159 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
             <TabsContent value="uv" className="space-y-3 mt-3">
               <Card className="border-0 shadow-none">
                 <CardHeader className="p-3 pb-0">
-                  <CardTitle className="text-sm">UV Map & Texture</CardTitle>
+                  <CardTitle className="text-sm">UV Map</CardTitle>
                 </CardHeader>
-                <CardContent className="p-3 space-y-3">
-                  {uvMapUrl && (
+                <CardContent className="p-3">
+                  {uvMapUrl ? (
                     <div className="space-y-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs font-medium">UV Map Preview</Label>
-                        <div className="border rounded-sm overflow-hidden">
-                          <img 
-                            src={uvMapUrl} 
-                            alt="UV Map" 
-                            className="w-full h-32 object-contain bg-white"
-                          />
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          className="w-full h-7 text-xs"
-                          onClick={() => {
-                            const a = document.createElement('a');
-                            a.href = uvMapUrl;
-                            a.download = 'uv-map.png';
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                          }}
-                        >
-                          Download UV Map
-                        </Button>
+                      <div className="border rounded-sm overflow-hidden">
+                        <img src={uvMapUrl} alt="UV Map" className="w-full h-32 object-contain bg-white" />
                       </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full text-xs"
+                        onClick={() => {
+                          const a = document.createElement('a');
+                          a.href = uvMapUrl;
+                          a.download = 'uv-map.png';
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                        }}
+                      >
+                        Download UV Map
+                      </Button>
                     </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No UV map available</p>
                   )}
-                  {extractedTexture && (
-                    <div className="space-y-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs font-medium">Extracted Texture</Label>
-                        <div className="border rounded-sm overflow-hidden">
-                          <img 
-                            src={extractedTexture.image.src} 
-                            alt="Extracted Texture" 
-                            className="w-full h-32 object-contain bg-white"
-                          />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Info Tab */}
+            <TabsContent value="info" className="space-y-3 mt-3">
+              <Card className="border-0 shadow-none">
+                <CardHeader className="p-3 pb-0">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-sm">Model Information</CardTitle>
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="fast-mode" className="text-xs">Fast Mode</Label>
+                      <Switch
+                        id="fast-mode"
+                        checked={fastMode}
+                        onCheckedChange={setFastMode}
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-3 space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-medium">Meshes</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {gltf?.scene ? countMeshes(gltf.scene) : 0}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-medium">Nodes</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {gltf?.scene ? countNodes(gltf.scene) : 0}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-medium">Textures</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {gltf?.scene ? countTextures(gltf.scene) : 0}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-medium">UV Maps</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {gltf?.scene ? countUVMaps(gltf.scene) : 0}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {isGenerating ? (
+                    <div className="text-center py-4">
+                      <p className="text-xs text-muted-foreground">Generating previews...</p>
+                    </div>
+                  ) : gltf?.scene && (
+                    <>
+                      {/* Mesh Previews */}
+                      {meshPreviews.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-medium">Mesh Previews</h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            {meshPreviews.map((preview, index) => (
+                              <div key={`mesh-${index}`} className="border rounded-sm overflow-hidden">
+                                <img 
+                                  src={preview} 
+                                  alt={`Mesh ${index + 1}`}
+                                  className="w-full h-24 object-contain bg-white"
+                                  loading="lazy"
+                                />
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          className="w-full h-7 text-xs"
-                          onClick={() => {
-                            const a = document.createElement('a');
-                            a.href = extractedTexture.image.src;
-                            a.download = 'texture.png';
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                          }}
-                        >
-                          Download Texture
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  {!uvMapUrl && !extractedTexture && (
-                    <div className="text-center text-muted-foreground py-4">
-                      <p className="text-xs">Load a model to see UV map and texture</p>
-                    </div>
+                      )}
+
+                      {/* Node Hierarchy */}
+                      {nodeHierarchy && (
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-medium">Node Hierarchy</h3>
+                          <div className="border rounded-sm overflow-hidden">
+                            <img 
+                              src={nodeHierarchy} 
+                              alt="Node Hierarchy"
+                              className="w-full h-32 object-contain bg-white"
+                              loading="lazy"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Texture Previews */}
+                      {extractedTextures?.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-medium">Texture Previews</h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            {extractedTextures.map((texture, index) => (
+                              <div key={`texture-${index}`} className="border rounded-sm overflow-hidden">
+                                <img 
+                                  src={texture.texture.image?.src || texture.texture.source?.data?.src} 
+                                  alt={`Texture ${index + 1}`}
+                                  className="w-full h-24 object-contain bg-white"
+                                  loading="lazy"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* UV Map Previews */}
+                      {uvMaps.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-medium">UV Map Previews</h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            {uvMaps.map((uvMap, index) => (
+                              <div key={`uv-${index}`} className="border rounded-sm overflow-hidden">
+                                <img 
+                                  src={uvMap} 
+                                  alt={`UV Map ${index + 1}`}
+                                  className="w-full h-24 object-contain bg-white"
+                                  loading="lazy"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -598,4 +813,47 @@ const Drawer = ({ modelUrl, setModelUrl }) => {
   );
 };
 
-export default Drawer; 
+export default Drawer;
+
+// Add these utility functions at the top of the file after the imports
+const countMeshes = (object) => {
+  let count = 0;
+  object.traverse((child) => {
+    if (child.isMesh) count++;
+  });
+  return count;
+};
+
+const countNodes = (object) => {
+  let count = 0;
+  object.traverse(() => count++);
+  return count;
+};
+
+const countTextures = (object) => {
+  const textures = new Set();
+  object.traverse((child) => {
+    if (child.isMesh && child.material) {
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach(material => {
+        if (material.map) textures.add(material.map);
+        if (material.normalMap) textures.add(material.normalMap);
+        if (material.roughnessMap) textures.add(material.roughnessMap);
+        if (material.metalnessMap) textures.add(material.metalnessMap);
+        if (material.aoMap) textures.add(material.aoMap);
+        if (material.emissiveMap) textures.add(material.emissiveMap);
+      });
+    }
+  });
+  return textures.size;
+};
+
+const countUVMaps = (object) => {
+  const uvMaps = new Set();
+  object.traverse((child) => {
+    if (child.isMesh && child.geometry && child.geometry.attributes.uv) {
+      uvMaps.add(child.geometry.attributes.uv);
+    }
+  });
+  return uvMaps.size;
+}; 
